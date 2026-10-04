@@ -5,7 +5,22 @@ enum AppTab: String, CaseIterable, Hashable {
 }
 
 struct RootView: View {
-    @State private var tab: AppTab = .table
+    @Environment(AppModel.self) private var app
+
+    var body: some View {
+        switch app.phase {
+        case .launching:
+            ProgressView().task { await app.bootstrap() }
+        case .signedOut:
+            LoginView()
+        case .signedIn:
+            MainTabs()
+        }
+    }
+}
+
+struct MainTabs: View {
+    @SceneStorage("tab") private var tab: AppTab = .table
 
     var body: some View {
         TabView(selection: $tab) {
@@ -16,12 +31,8 @@ struct RootView: View {
                 NavigationStack { Text("Matches").navigationTitle("Matches") }
             }
             Tab("Settings", systemImage: "gear", value: AppTab.settings) {
-                NavigationStack { Text("Settings").navigationTitle("Settings") }
+                NavigationStack { SettingsView() }
             }
         }
     }
-}
-
-#Preview {
-    RootView()
 }
