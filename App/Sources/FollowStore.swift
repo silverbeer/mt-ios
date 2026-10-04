@@ -8,7 +8,7 @@ final class FollowStore {
     private(set) var teams: [FollowedTeam] = []
     private(set) var isLoaded = false
     /// Called after a successful follow — the app uses it to ask for notification permission.
-    var onFirstFollow: (() -> Void)?
+    var onFirstFollow: (@MainActor () -> Void)?
 
     var teamIds: Set<Int> { Set(teams.map(\.teamId)) }
 
