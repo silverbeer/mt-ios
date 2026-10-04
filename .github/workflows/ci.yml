@@ -1,0 +1,35 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: test
+    runs-on: macos-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - name: Toolchain
+        run: |
+          xcodebuild -version
+          brew install xcodegen
+      - name: MTKit unit tests
+        run: swift test --package-path MTKit
+      - name: App build + tests (simulator)
+        run: |
+          xcodegen generate --quiet
+          dest="$(scripts/sim-destination.sh)"
+          echo "destination: $dest"
+          set -o pipefail
+          xcodebuild test \
+            -project MissingTable.xcodeproj \
+            -scheme MissingTable \
+            -destination "$dest" \
+            CODE_SIGNING_ALLOWED=NO

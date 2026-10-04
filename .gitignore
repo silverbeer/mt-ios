@@ -1,0 +1,12 @@
+.DS_Store
+*.xcodeproj/
+xcuserdata/
+DerivedData/
+.build/
+.swiftpm/
+build/
+*.ipa
+*.dSYM.zip
+*.p8
+fastlane/report.xml
+App/Info.plist
