@@ -125,6 +125,17 @@ public actor APIClient {
         try await send(makeRequest(method, path, body: try JSONEncoder.mt.encode(body)))
     }
 
+    /// Like `get`/`send` but leaves JSON keys as-is, for maps keyed by backend identifiers.
+    func getRawKeys<T: Decodable>(_ path: String) async throws -> T {
+        let (data, response) = try await authorized(makeRequest("GET", path))
+        return try decode(data, response, decoder: JSONDecoder())
+    }
+
+    func sendRawKeys<T: Decodable>(_ method: String, _ path: String, body: some Encodable) async throws -> T {
+        let (data, response) = try await authorized(makeRequest(method, path, body: try JSONEncoder().encode(body)))
+        return try decode(data, response, decoder: JSONDecoder())
+    }
+
     /// For endpoints whose response body is ignored (e.g. DELETE → 204).
     func sendIgnoringBody(_ method: String, _ path: String) async throws {
         _ = try await authorized(makeRequest(method, path))
@@ -207,12 +218,13 @@ public actor APIClient {
         return result
     }
 
-    private func decode<T: Decodable>(_ data: Data, _ response: HTTPURLResponse) throws -> T {
+    private func decode<T: Decodable>(_ data: Data, _ response: HTTPURLResponse,
+                                      decoder: JSONDecoder = .mt) throws -> T {
         guard (200..<300).contains(response.statusCode) else {
             throw APIError.http(status: response.statusCode, detail: Self.detail(from: data))
         }
         do {
-            return try JSONDecoder.mt.decode(T.self, from: data)
+            return try decoder.decode(T.self, from: data)
         } catch {
             throw APIError.decoding(String(describing: error))
         }

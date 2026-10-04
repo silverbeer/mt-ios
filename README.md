@@ -49,3 +49,14 @@ One-time setup (needs the Apple Developer account):
 3. Create the app record in App Store Connect with bundle id `io.silverbeer.mt`.
 4. `scripts/set-release-secrets.sh`
 5. `gh workflow run TestFlight`, then add testers in App Store Connect → TestFlight → Internal Testing.
+## Push notifications
+
+Score updates arrive via APNs for teams you follow (backend: missing-table `notifications/apns_sender.py`).
+Permission is requested after the first follow. Debug builds register as `sandbox`, release builds as
+`production` — a mismatch makes Apple reject the token and the backend drops it.
+
+Simulate a push in the Simulator (tapping it opens match 1):
+
+```bash
+xcrun simctl push booted io.silverbeer.mt push/goal.apns
+```

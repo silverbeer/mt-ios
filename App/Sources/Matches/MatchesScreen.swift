@@ -5,7 +5,9 @@ import MTKit
 struct MatchesScreen: View {
     @Environment(AppModel.self) private var app
     @Environment(LeagueFilter.self) private var filter
+    @Environment(FollowStore.self) private var follows
     @State private var state: Loadable<[Match]> = .idle
+    @AppStorage("matches.myTeamsOnly") private var myTeamsOnly = false
 
     /// Window around today: recent results and the next few weeks of fixtures.
     static let daysBack = 14
@@ -16,7 +18,7 @@ struct MatchesScreen: View {
 
     var body: some View {
         LoadableView(state: state, retry: load) { matches in
-            let schedule = MatchSchedule(matches)
+            let schedule = MatchSchedule(myTeamsOnly ? MatchSchedule.involving(follows.teamIds, in: matches) : matches)
             if schedule.isEmpty {
                 ContentUnavailableView("No Matches", systemImage: "sportscourt",
                                        description: Text("Nothing for \(filter.summary) in the next few weeks."))
@@ -25,7 +27,15 @@ struct MatchesScreen: View {
             }
         }
         .navigationTitle("Matches")
-        .toolbar { ToolbarItem(placement: .topBarTrailing) { FilterButton() } }
+        .toolbar {
+            ToolbarItem(placement: .topBarLeading) {
+                if !follows.teams.isEmpty {
+                    Toggle(isOn: $myTeamsOnly) { Label("My Teams", systemImage: "star") }
+                        .toggleStyle(.button)
+                }
+            }
+            ToolbarItem(placement: .topBarTrailing) { FilterButton() }
+        }
         .refreshable { await load() }
         .task(id: selectionKey) {
             await load()
@@ -41,6 +51,7 @@ struct MatchesScreen: View {
         if state.value == nil { state = .loading }
         do {
             if !filter.isLoaded { try await filter.load(using: app.client) }
+            if !follows.isLoaded { try? await follows.load(using: app.client) }
             let today = Date()
             let start = Calendar.current.date(byAdding: .day, value: -Self.daysBack, to: today) ?? today
             let end = Calendar.current.date(byAdding: .day, value: Self.daysAhead, to: today) ?? today
