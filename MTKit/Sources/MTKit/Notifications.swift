@@ -8,11 +8,23 @@ public struct FollowedTeam: Codable, Sendable, Equatable, Identifiable, Hashable
         public struct Named: Codable, Sendable, Equatable, Hashable {
             public var id: Int?
             public var name: String?
+
+            public init(id: Int? = nil, name: String? = nil) {
+                self.id = id
+                self.name = name
+            }
         }
         public var id: Int?
         public var name: String?
         public var club: Named?
         public var division: Named?
+
+        public init(id: Int? = nil, name: String? = nil, club: Named? = nil, division: Named? = nil) {
+            self.id = id
+            self.name = name
+            self.club = club
+            self.division = division
+        }
     }
 
     public var teamId: Int
