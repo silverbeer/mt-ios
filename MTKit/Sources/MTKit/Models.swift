@@ -118,6 +118,24 @@ public struct StandingRow: Codable, Sendable, Equatable, Identifiable {
     }
 }
 
+extension StandingRow {
+    // Counts default to 0 when absent, matching the Android client's StandingRow.
+    public init(from decoder: any Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        func count(_ key: CodingKeys) throws -> Int { try c.decodeIfPresent(Int.self, forKey: key) ?? 0 }
+        self.init(team: try c.decodeIfPresent(String.self, forKey: .team) ?? "",
+                  teamId: try c.decodeIfPresent(Int.self, forKey: .teamId),
+                  clubId: try c.decodeIfPresent(Int.self, forKey: .clubId),
+                  logoUrl: try c.decodeIfPresent(String.self, forKey: .logoUrl),
+                  played: try count(.played), wins: try count(.wins), draws: try count(.draws),
+                  losses: try count(.losses), goalsFor: try count(.goalsFor),
+                  goalsAgainst: try count(.goalsAgainst), goalDifference: try count(.goalDifference),
+                  points: try count(.points),
+                  form: try c.decodeIfPresent([String].self, forKey: .form),
+                  positionChange: try c.decodeIfPresent(Int.self, forKey: .positionChange))
+    }
+}
+
 struct TableResponse: Decodable, Sendable {
     var standings: [StandingRow]
 }
