@@ -19,7 +19,7 @@ final class PushManager: NSObject {
     private var deviceToken: Data?
 
     /// Debug builds talk to the APNs sandbox, release (TestFlight/App Store) to production.
-    static var apnsEnvironment: APNsEnvironment {
+    nonisolated static var apnsEnvironment: APNsEnvironment {
         #if DEBUG
         .sandbox
         #else
