@@ -1,0 +1,13 @@
+{
+  "Simulator Target Bundle": "io.silverbeer.mt",
+  "aps": {
+    "alert": {
+      "title": "⚽ GOAL — Blues 1–0 Reds",
+      "body": "Sam Smith 23'"
+    },
+    "sound": "default",
+    "thread-id": "match-1"
+  },
+  "matchId": 1,
+  "eventType": "goal"
+}

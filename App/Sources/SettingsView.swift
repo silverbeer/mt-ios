@@ -33,6 +33,13 @@ struct SettingsView: View {
             } header: {
                 Text("My Teams")
             }
+            Section {
+                NavigationLink {
+                    NotificationSettingsView()
+                } label: {
+                    Label("Notifications", systemImage: "bell")
+                }
+            }
             Section("Account") {
                 if let user = app.user {
                     LabeledContent("Signed in as", value: user.label)

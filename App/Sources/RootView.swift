@@ -21,6 +21,7 @@ struct RootView: View {
 }
 
 struct MainTabs: View {
+    @Environment(PushManager.self) private var push
     @SceneStorage("tab") private var tab: AppTab = .table
 
     var body: some View {
@@ -34,6 +35,17 @@ struct MainTabs: View {
             Tab("Settings", systemImage: "gear", value: AppTab.settings) {
                 NavigationStack { SettingsView().withRoutes() }
             }
+        }
+        .sheet(isPresented: Binding(
+            get: { push.pendingMatchId != nil },
+            set: { if !$0 { push.pendingMatchId = nil } }
+        )) {
+            if let id = push.pendingMatchId { MatchByIdView(matchId: id) }
+        }
+        .task {
+            // Re-registers with APNs when permitted; the token callback uploads it.
+            await push.refreshAuthorization()
+            await push.uploadToken()
         }
     }
 }

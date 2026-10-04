@@ -55,3 +55,15 @@ import MTKit
         #expect(LeagueFilter(defaults: defaults).ageGroupId == 14)
     }
 }
+
+@Suite struct PushPayloadTests {
+    @Test func readsMatchIdFromBackendPayload() {
+        #expect(PushManager.matchId(from: ["matchId": 42, "eventType": "goal"]) == 42)
+        #expect(PushManager.matchId(from: ["matchId": "42"]) == 42)
+        #expect(PushManager.matchId(from: ["aps": [:]]) == nil)
+    }
+
+    @Test func debugBuildsUseSandbox() {
+        #expect(PushManager.apnsEnvironment == .sandbox)
+    }
+}
