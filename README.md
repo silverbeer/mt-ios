@@ -36,3 +36,16 @@ scripts/test.sh                   # everything, on a simulator
 scripts/run-sim.sh                # build + launch in the Simulator
 xcodegen generate && open MissingTable.xcodeproj   # work in Xcode
 ```
+
+## TestFlight
+
+`.github/workflows/testflight.yml` archives a Release build and uploads it to TestFlight, on manual
+dispatch or a `v*` tag. Signing is automatic via an App Store Connect API key; the build number is the
+workflow run number.
+
+One-time setup (needs the Apple Developer account):
+1. App Store Connect → Users and Access → Integrations → App Store Connect API → new key with **App Manager** role.
+2. Store it in 1Password `agents` vault, item `mt-ios-asc`, fields `key_id`, `issuer_id`, `team_id`, `private_key` (the `.p8` contents).
+3. Create the app record in App Store Connect with bundle id `io.silverbeer.mt`.
+4. `scripts/set-release-secrets.sh`
+5. `gh workflow run TestFlight`, then add testers in App Store Connect → TestFlight → Internal Testing.
