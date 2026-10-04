@@ -1,4 +1,5 @@
 import SwiftUI
+import MTKit
 
 enum AppTab: String, CaseIterable, Hashable {
     case table, matches, settings
@@ -25,14 +26,22 @@ struct MainTabs: View {
     var body: some View {
         TabView(selection: $tab) {
             Tab("Table", systemImage: "list.number", value: AppTab.table) {
-                NavigationStack { Text("Table").navigationTitle("Table") }
+                NavigationStack { TableScreen().withRoutes() }
             }
             Tab("Matches", systemImage: "sportscourt", value: AppTab.matches) {
-                NavigationStack { Text("Matches").navigationTitle("Matches") }
+                NavigationStack { MatchesScreen().withRoutes() }
             }
             Tab("Settings", systemImage: "gear", value: AppTab.settings) {
                 NavigationStack { SettingsView() }
             }
         }
+    }
+}
+
+extension View {
+    /// Navigation destinations shared by every tab's stack.
+    func withRoutes() -> some View {
+        navigationDestination(for: TeamRoute.self) { TeamView(team: $0) }
+            .navigationDestination(for: Match.self) { MatchDetailView(match: $0) }
     }
 }
