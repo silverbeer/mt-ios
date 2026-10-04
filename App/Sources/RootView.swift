@@ -32,7 +32,7 @@ struct MainTabs: View {
                 NavigationStack { MatchesScreen().withRoutes() }
             }
             Tab("Settings", systemImage: "gear", value: AppTab.settings) {
-                NavigationStack { SettingsView() }
+                NavigationStack { SettingsView().withRoutes() }
             }
         }
     }

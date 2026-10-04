@@ -11,7 +11,9 @@ struct TeamView: View {
     let team: TeamRoute
     @Environment(AppModel.self) private var app
     @Environment(LeagueFilter.self) private var filter
+    @Environment(FollowStore.self) private var follows
     @State private var state: Loadable<MatchSchedule> = .idle
+    @State private var followError: String?
 
     var body: some View {
         LoadableView(state: state, retry: load) { schedule in
@@ -23,8 +25,36 @@ struct TeamView: View {
             }
         }
         .navigationTitle(team.name)
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                let following = follows.isFollowing(team.id)
+                Button {
+                    Task {
+                        do {
+                            try await follows.toggle(team, using: app.client)
+                        } catch {
+                            app.handle(error)
+                            followError = error.displayMessage
+                        }
+                    }
+                } label: {
+                    Label(following ? "Unfollow" : "Follow", systemImage: following ? "star.fill" : "star")
+                }
+                .sensoryFeedback(.selection, trigger: following)
+            }
+        }
+        .alert("Couldn't update follow", isPresented: Binding(
+            get: { followError != nil }, set: { if !$0 { followError = nil } }
+        )) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text(followError ?? "")
+        }
         .refreshable { await load() }
-        .task { await load() }
+        .task {
+            if !follows.isLoaded { try? await follows.load(using: app.client) }
+            await load()
+        }
     }
 
     private func load() async {
