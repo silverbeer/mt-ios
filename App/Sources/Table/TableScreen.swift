@@ -69,20 +69,19 @@ private struct StandingsList: View {
 }
 
 private enum Columns {
-    static let position: CGFloat = 22
-    static let stat: CGFloat = 30
-    static let points: CGFloat = 34
+    static let position: CGFloat = 20
+    static let stat: CGFloat = 24
+    static let points: CGFloat = 32
 }
 
-/// Compact phone layout: # · Team · P · GD · Pts. W-D-L and form sit under the team name.
+/// Phone layout: # · Team · GP · W · D · L · PTS, with last-5 form under the team name.
 private struct StandingHeader: View {
     var body: some View {
-        HStack(spacing: 6) {
+        HStack(spacing: 4) {
             Text("#").frame(width: Columns.position, alignment: .leading)
             Text("Team").frame(maxWidth: .infinity, alignment: .leading)
-            Text("P").frame(width: Columns.stat)
-            Text("GD").frame(width: Columns.stat)
-            Text("Pts").frame(width: Columns.points)
+            ForEach(["GP", "W", "D", "L"], id: \.self) { Text($0).frame(width: Columns.stat) }
+            Text("PTS").frame(width: Columns.points)
         }
         .font(.caption.weight(.semibold))
         .foregroundStyle(.secondary)
@@ -95,7 +94,7 @@ struct StandingRowView: View {
     let row: StandingRow
 
     var body: some View {
-        HStack(spacing: 6) {
+        HStack(spacing: 4) {
             Text("\(position)")
                 .frame(width: Columns.position, alignment: .leading)
                 .foregroundStyle(.secondary)
@@ -104,20 +103,14 @@ struct StandingRowView: View {
                     .font(.subheadline)
                     .lineLimit(1)
                     .truncationMode(.tail)
-                HStack(spacing: 6) {
-                    Text("\(row.wins)-\(row.draws)-\(row.losses)")
-                        .font(.caption2.monospacedDigit())
-                        .foregroundStyle(.secondary)
-                    if let form = row.form, !form.isEmpty { FormStrip(results: form) }
-                }
+                if let form = row.form, !form.isEmpty { FormStrip(results: form) }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
-            Text("\(row.played)")
-                .frame(width: Columns.stat)
-                .foregroundStyle(.secondary)
-            Text(row.goalDifference > 0 ? "+\(row.goalDifference)" : "\(row.goalDifference)")
-                .frame(width: Columns.stat)
-                .foregroundStyle(.secondary)
+            ForEach(Array([row.played, row.wins, row.draws, row.losses].enumerated()), id: \.offset) { _, value in
+                Text("\(value)")
+                    .frame(width: Columns.stat)
+                    .foregroundStyle(.secondary)
+            }
             Text("\(row.points)")
                 .bold()
                 .frame(width: Columns.points)
