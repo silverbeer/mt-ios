@@ -105,6 +105,9 @@ public struct MyProfile: Codable, Sendable, Equatable {
     public var textColor: String?
     public var accentColor: String?
     public var hometown: String?
+    public var instagramHandle: String?
+    public var snapchatHandle: String?
+    public var tiktokHandle: String?
 
     public var kind: Role { Role(raw: role) }
 
@@ -441,5 +444,69 @@ public enum StatColumn: String, CaseIterable, Sendable, Identifiable {
             if ga != gb { return ga > gb }
             return a.name < b.name
         }
+    }
+}
+
+/// One choice in the position picker (/api/positions).
+public struct PositionOption: Decodable, Sendable, Equatable, Identifiable, Hashable {
+    public var fullName: String
+    public var abbreviation: String
+    public var group: String
+
+    public var id: String { abbreviation }
+}
+
+/// Fields a player edits themselves (web PlayerProfileEditor). Jersey number is set
+/// by the team manager and is not sent. Nil fields are left unchanged by the backend.
+public struct ProfileCustomization: Encodable, Sendable, Equatable {
+    public var overlayStyle: String?
+    public var primaryColor: String?
+    public var textColor: String?
+    public var accentColor: String?
+    public var positions: [String]?
+    public var instagramHandle: String?
+    public var snapchatHandle: String?
+    public var tiktokHandle: String?
+
+    public init(from profile: MyProfile) {
+        overlayStyle = profile.overlayStyle
+        primaryColor = profile.primaryColor
+        textColor = profile.textColor
+        accentColor = profile.accentColor
+        positions = profile.positions
+        instagramHandle = profile.instagramHandle
+        snapchatHandle = profile.snapchatHandle
+        tiktokHandle = profile.tiktokHandle
+    }
+
+    public static let overlayStyles = ["badge", "jersey", "caption", "none"]
+
+    /// Handles as the backend accepts them: no leading @, empty → nil (web sends null).
+    public var normalized: ProfileCustomization {
+        var copy = self
+        func clean(_ handle: String?) -> String? {
+            let trimmed = handle?.trimmingCharacters(in: .whitespaces).trimmingCharacters(in: CharacterSet(charactersIn: "@"))
+            return trimmed?.isEmpty == false ? trimmed : nil
+        }
+        copy.instagramHandle = clean(instagramHandle)
+        copy.snapchatHandle = clean(snapchatHandle)
+        copy.tiktokHandle = clean(tiktokHandle)
+        return copy
+    }
+
+    /// Backend rule: letters, numbers, underscores, periods; at most 30.
+    public static func isValidHandle(_ handle: String?) -> Bool {
+        guard let handle, !handle.isEmpty else { return true }
+        return handle.count <= 30 && handle.allSatisfy { $0.isLetter || $0.isNumber || $0 == "_" || $0 == "." }
+            && handle.unicodeScalars.allSatisfy(\.isASCII)
+    }
+}
+
+extension APIClient {
+    public func positions() async throws -> [PositionOption] { try await get("/api/positions") }
+
+    public func updateCustomization(_ customization: ProfileCustomization) async throws {
+        struct Ignored: Decodable {}
+        let _: Ignored = try await send("PUT", "/api/auth/profile/customization", body: customization.normalized)
     }
 }

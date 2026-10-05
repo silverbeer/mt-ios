@@ -1,4 +1,5 @@
 import Foundation
+import SwiftUI
 import Testing
 import MTKit
 @testable import MissingTable
@@ -93,5 +94,13 @@ import MTKit
 
     @Test func emptySelectionMeansAll() {
         #expect(MatchesFilterStore(defaults: defaults()).summary == "All divisions")
+    }
+}
+
+@Suite struct ColorHexTests {
+    @Test func roundTripsHex() {
+        #expect(Color(hex: "#1E40AF")?.hexString == "#1E40AF")
+        #expect(Color(hex: "ff0000")?.hexString == "#FF0000")
+        #expect(Color(hex: "nope") == nil)
     }
 }

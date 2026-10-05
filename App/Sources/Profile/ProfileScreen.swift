@@ -11,6 +11,7 @@ struct ProfileScreen: View {
     @State private var profile: Loadable<MyProfile> = .idle
     @State private var stats: PlayerStatsResponse?
     @State private var record: TeamRecord?
+    @State private var editing = false
 
     var body: some View {
         LoadableView(state: profile, retry: load) { profile in
@@ -33,6 +34,16 @@ struct ProfileScreen: View {
             }
         }
         .navigationTitle("Profile")
+        .toolbar {
+            if let loaded = profile.value, loaded.kind == .player {
+                ToolbarItem(placement: .topBarTrailing) { Button("Edit") { editing = true } }
+            }
+        }
+        .sheet(isPresented: $editing) {
+            if let loaded = profile.value {
+                ProfileEditorView(profile: loaded) { await load() }
+            }
+        }
         .refreshable { await load() }
         .task { await load() }
     }
@@ -42,6 +53,10 @@ struct ProfileScreen: View {
         do {
             let loaded = try await app.client.profile()
             profile = .loaded(loaded)
+            #if DEBUG
+            // `-MTEditProfile 1` opens the editor on launch (simulator screenshots).
+            if UserDefaults.standard.bool(forKey: "MTEditProfile") { editing = true }
+            #endif
             if !filter.isLoaded { try? await filter.load(using: app.client) }
             if !follows.isLoaded { try? await follows.load(using: app.client) }
             guard loaded.kind == .player else { return }

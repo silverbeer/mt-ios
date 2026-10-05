@@ -123,3 +123,34 @@ import Testing
         #expect(byGP == [3, 2, 1])
     }
 }
+
+@Suite struct CustomizationTests {
+    @Test func normalizesHandlesAndSendsSnakeCase() throws {
+        var profile = MyProfile(id: "u")
+        profile.positions = ["CM", "CAM"]
+        profile.primaryColor = "#112233"
+        var custom = ProfileCustomization(from: profile)
+        custom.instagramHandle = "@gabe.35"
+        custom.tiktokHandle = "  "
+        let body = try JSONSerialization.jsonObject(with: JSONEncoder.mt.encode(custom.normalized)) as? [String: Any]
+        #expect(body?["instagram_handle"] as? String == "gabe.35")
+        #expect(body?["tiktok_handle"] == nil)
+        #expect(body?["primary_color"] as? String == "#112233")
+        #expect(body?["positions"] as? [String] == ["CM", "CAM"])
+        #expect(body?["player_number"] == nil)
+    }
+
+    @Test func handleValidationMatchesBackend() {
+        #expect(ProfileCustomization.isValidHandle("gabe_35.x"))
+        #expect(ProfileCustomization.isValidHandle(nil))
+        #expect(!ProfileCustomization.isValidHandle("bad handle"))
+        #expect(!ProfileCustomization.isValidHandle(String(repeating: "a", count: 31)))
+        #expect(!ProfileCustomization.isValidHandle("émile"))
+    }
+
+    @Test func decodesPositionOptions() throws {
+        let options = try JSONDecoder.mt.decode([PositionOption].self, from: json(
+            #"[{"full_name": "Goalkeeper", "abbreviation": "GK", "group": "Goalkeeper"}]"#))
+        #expect(options.first?.id == "GK")
+    }
+}
