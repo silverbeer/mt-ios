@@ -4,6 +4,12 @@ import MTKit
 struct TeamRoute: Hashable {
     let id: Int
     let name: String
+    /// Set when opened from one age group of a squad that spans several: matches and
+    /// roster are narrowed to it.
+    var ageGroup: NamedRef? = nil
+
+    /// "IFA U15" when narrowed to an age group.
+    var title: String { [name, ageGroup?.name].compactMap { $0 }.joined(separator: " ") }
 }
 
 /// A team for the selected season: matches, roster and player stats.
@@ -35,7 +41,7 @@ struct TeamView: View {
             .padding(.vertical, 8)
             .background(.bar)
         }
-        .navigationTitle(team.name)
+        .navigationTitle(team.title)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
@@ -98,7 +104,7 @@ private struct TeamMatches: View {
         if state.value == nil { state = .loading }
         do {
             if !filter.isLoaded { try await filter.load(using: app.client) }
-            let matches = try await app.client.matches(MatchQuery(seasonId: filter.seasonId, teamId: team.id))
+            let matches = try await app.client.matches(MatchQuery(seasonId: filter.seasonId, ageGroupId: team.ageGroup?.id, teamId: team.id))
             state = .loaded(MatchSchedule(matches))
         } catch is CancellationError {
         } catch {

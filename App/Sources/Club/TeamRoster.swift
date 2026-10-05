@@ -75,7 +75,7 @@ struct TeamRoster: View {
         do {
             if !filter.isLoaded { try await filter.load(using: app.client) }
             guard let seasonId = filter.seasonId else { state = .loaded([]); return }
-            let roster = try await app.client.roster(teamId: team.id, seasonId: seasonId)
+            let roster = try await app.client.roster(teamId: team.id, seasonId: seasonId, ageGroupId: team.ageGroup?.id)
             state = .loaded(roster.sorted { ($0.jerseyNumber ?? 999, $0.name) < ($1.jerseyNumber ?? 999, $1.name) })
         } catch is CancellationError {
         } catch {

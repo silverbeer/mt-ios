@@ -96,6 +96,45 @@ import Testing
         #expect(groups == ["U9", "U13", "U15", "Other"])
     }
 
+    @Test func listsATeamUnderEveryAgeGroupItIsMappedTo() throws {
+        let data = json("""
+        [{"id": 1, "name": "IFA", "age_group_name": "U13",
+          "age_groups": [{"id": 13, "name": "U13"}, {"id": 14, "name": "U14"}, {"id": 15, "name": "U15"}]},
+         {"id": 2, "name": "IFA Academy", "age_group_name": "U13", "age_groups": [{"id": 13, "name": "U13"}]}]
+        """)
+        let teams = try JSONDecoder.mt.decode([ClubTeam].self, from: data)
+        let groups = ClubTeam.byAgeGroup(teams).map { ($0.ageGroup, $0.teams.map(\.id)) }
+        #expect(groups.map(\.0) == ["U13", "U14", "U15"])
+        #expect(groups.map(\.1) == [[1, 2], [1], [1]])
+    }
+
+    @Test func ownTeamIdsPutThePrimaryTeamFirstWithoutDuplicates() throws {
+        let data = json("""
+        {"team_id": 7, "current_teams": [{"team_id": 9}, {"team_id": 7}, {"team": {"id": 11}}]}
+        """)
+        let profile = try JSONDecoder.mt.decode(MyProfile.self, from: data)
+        #expect(profile.ownTeamIds == [7, 9, 11])
+        #expect(try JSONDecoder.mt.decode(MyProfile.self, from: json("{}")).ownTeamIds.isEmpty)
+    }
+
+    @Test func ageGroupForTeamComesFromCurrentTeams() throws {
+        let data = json("""
+        {"team_id": 7, "current_teams": [{"team_id": 7, "age_group": {"id": 15, "name": "U15"}}]}
+        """)
+        let profile = try JSONDecoder.mt.decode(MyProfile.self, from: data)
+        #expect(profile.ageGroup(forTeam: 7) == NamedRef(id: 15, name: "U15"))
+        #expect(profile.ageGroup(forTeam: 8) == nil)
+    }
+
+    @Test func rosterNarrowsToAnAgeGroup() async throws {
+        let client = StubURLProtocol.client(tokens: InMemoryTokenStore(AuthTokens(accessToken: "t", refreshToken: "r"))) { request in
+            #expect(request.url?.query?.contains("age_group_id=15") == true)
+            #expect(request.url?.query?.contains("season_id=3") == true)
+            return (200, json(#"{"success": true, "roster": []}"#))
+        }
+        _ = try await client.roster(teamId: 7, seasonId: 3, ageGroupId: 15)
+    }
+
     @Test func playerAccountProfileIsNilWhenForbidden() async throws {
         let client = StubURLProtocol.client(tokens: InMemoryTokenStore(AuthTokens(accessToken: "t", refreshToken: "r"))) { _ in
             (403, json(#"{"detail": "Not in your club"}"#))

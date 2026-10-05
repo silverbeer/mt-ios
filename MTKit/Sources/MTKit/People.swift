@@ -128,6 +128,21 @@ public struct MyProfile: Codable, Sendable, Equatable {
         }
     }
 
+    /// The age group the user plays in for one of their teams ("U15" for a Homegrown squad
+    /// that spans U13–U15), from `current_teams`.
+    public func ageGroup(forTeam teamId: Int) -> NamedRef? {
+        currentTeams?.first { ($0.teamId ?? $0.team?.id) == teamId }?.ageGroup
+    }
+
+    /// The user's own teams: the primary team first, then the rest of `current_teams`.
+    public var ownTeamIds: [Int] {
+        var ids: [Int] = []
+        for id in [teamId ?? team?.id] + (currentTeams ?? []).map({ $0.teamId ?? $0.team?.id }) {
+            if let id, !ids.contains(id) { ids.append(id) }
+        }
+        return ids
+    }
+
     /// Club for display: the profile's club, else the primary team's club.
     public var displayClub: ClubRef? { club ?? team?.club ?? currentTeams?.first?.team?.club }
 }
@@ -315,9 +330,11 @@ extension APIClient {
         try await get("/api/roster/\(playerId)/stats", query: ["season_id": seasonId.map(String.init)])
     }
 
-    public func roster(teamId: Int, seasonId: Int) async throws -> [RosterPlayer] {
-        let response: RosterResponse = try await get("/api/teams/\(teamId)/roster",
-                                                     query: ["season_id": String(seasonId)])
+    /// `ageGroupId` narrows a squad that spans age groups to that age group's players.
+    public func roster(teamId: Int, seasonId: Int, ageGroupId: Int? = nil) async throws -> [RosterPlayer] {
+        let response: RosterResponse = try await get("/api/teams/\(teamId)/roster", query: [
+            "season_id": String(seasonId), "age_group_id": ageGroupId.map(String.init),
+        ])
         return response.roster
     }
 
@@ -355,9 +372,20 @@ public struct ClubTeam: Decodable, Sendable, Equatable, Identifiable, Hashable {
     /// "Homegrown · Northeast".
     public var subtitle: String { [leagueName, divisionName].compactMap { $0 }.joined(separator: " · ") }
 
+    /// Every age group the team plays in. `age_group_name` is only the first of these.
+    public var ageGroupNames: [String] {
+        let names = (ageGroups ?? []).compactMap(\.name)
+        return names.isEmpty ? [ageGroupName ?? "Other"] : names
+    }
+
     /// Club teams grouped by age group, youngest first ("U13" < "U14"); teams without one last.
+    /// A team mapped to several age groups (a Homegrown squad across U13–U15) is listed under each.
     public static func byAgeGroup(_ teams: [ClubTeam]) -> [(ageGroup: String, teams: [ClubTeam])] {
-        Dictionary(grouping: teams) { $0.ageGroupName ?? "Other" }
+        var groups: [String: [ClubTeam]] = [:]
+        for team in teams {
+            for ageGroup in team.ageGroupNames { groups[ageGroup, default: []].append(team) }
+        }
+        return groups
             .map { (ageGroup: $0.key, teams: $0.value.sorted { $0.name < $1.name }) }
             .sorted { lhs, rhs in
                 if lhs.ageGroup == "Other" { return false }
