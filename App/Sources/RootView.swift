@@ -2,7 +2,7 @@ import SwiftUI
 import MTKit
 
 enum AppTab: String, CaseIterable, Hashable {
-    case table, matches, club, profile
+    case live, table, matches, club, profile
 }
 
 struct RootView: View {
@@ -24,9 +24,18 @@ struct MainTabs: View {
     @Environment(AppModel.self) private var app
     @Environment(PushManager.self) private var push
     @SceneStorage("tab") private var tab: AppTab = .table
+    /// Matches being scored right now; the LIVE tab exists only while there are some (web App.vue).
+    @State private var liveMatches: [LiveMatchSummary] = []
+    static let livePoll: Duration = .seconds(30)
 
     var body: some View {
         TabView(selection: $tab) {
+            if !liveMatches.isEmpty {
+                Tab("LIVE", systemImage: "dot.radiowaves.left.and.right", value: AppTab.live) {
+                    NavigationStack { LiveScreen(matches: liveMatches).withRoutes() }
+                }
+                .badge(liveMatches.count)
+            }
             Tab("Table", systemImage: "list.number", value: AppTab.table) {
                 NavigationStack { TableScreen().withRoutes() }
             }
@@ -53,6 +62,21 @@ struct MainTabs: View {
             // `-MTTab profile` on launch opens a tab (for simulator screenshots).
             if let raw = UserDefaults.standard.string(forKey: "MTTab"), let start = AppTab(rawValue: raw) { tab = start }
             #endif
+        }
+        .task {
+            while !Task.isCancelled {
+                liveMatches = (try? await app.client.liveMatches()) ?? liveMatches
+                #if DEBUG
+                // `-MTLiveMatch <id>` shows the LIVE tab for that match (simulator screenshots).
+                let debugId = UserDefaults.standard.integer(forKey: "MTLiveMatch")
+                if debugId > 0, liveMatches.isEmpty {
+                    liveMatches = [LiveMatchSummary(matchId: debugId)]
+                    tab = .live
+                }
+                #endif
+                if liveMatches.isEmpty, tab == .live { tab = .table }
+                try? await Task.sleep(for: Self.livePoll)
+            }
         }
         .task {
             // Re-registers with APNs when permitted; the token callback uploads it.
