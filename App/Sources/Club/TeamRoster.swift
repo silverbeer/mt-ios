@@ -85,14 +85,17 @@ struct TeamRoster: View {
     }
 }
 
-/// Season stats for every player: GP GS G A YC RC, sorted by goals as the API returns.
+/// Golden Boot (web GoldenBoot.vue): season stats for every player, sortable by
+/// any column, filterable by competition.
 struct TeamStats: View {
     let team: TeamRoute
     @Environment(AppModel.self) private var app
     @Environment(LeagueFilter.self) private var filter
     @State private var state: Loadable<[TeamPlayerStats]> = .idle
+    @State private var sortColumn: StatColumn = .goals
+    @State private var matchTypes: [MatchType] = []
+    @State private var matchTypeId: Int?
 
-    private static let columns = ["GP", "GS", "G", "A", "YC", "RC"]
     private static let stat: CGFloat = 26
 
     var body: some View {
@@ -103,17 +106,17 @@ struct TeamStats: View {
             } else {
                 List {
                     Section {
-                        ForEach(rows) { row in
+                        ForEach(sortColumn.sort(rows)) { row in
                             NavigationLink(value: PlayerRoute(row, teamName: team.name)) {
                                 HStack(spacing: 4) {
                                     Text(row.jerseyNumber.map(String.init) ?? "")
                                         .foregroundStyle(.secondary)
                                         .frame(width: 24, alignment: .leading)
                                     Text(row.name).lineLimit(1).frame(maxWidth: .infinity, alignment: .leading)
-                                    ForEach(Array(values(row).enumerated()), id: \.offset) { index, value in
-                                        Text("\(value)")
-                                            .fontWeight(index == 2 ? .bold : .regular)
-                                            .foregroundStyle(index == 2 ? .primary : .secondary)
+                                    ForEach(StatColumn.allCases) { column in
+                                        Text("\(column.value(row))")
+                                            .fontWeight(column == sortColumn ? .bold : .regular)
+                                            .foregroundStyle(column == sortColumn ? .primary : .secondary)
                                             .frame(width: Self.stat)
                                     }
                                 }
@@ -121,33 +124,61 @@ struct TeamStats: View {
                             }
                         }
                     } header: {
-                        HStack(spacing: 4) {
-                            Text("#").frame(width: 24, alignment: .leading)
-                            Text("Player").frame(maxWidth: .infinity, alignment: .leading)
-                            ForEach(Self.columns, id: \.self) { Text($0).frame(width: Self.stat) }
+                        VStack(alignment: .leading, spacing: 8) {
+                            HStack {
+                                Label("Golden Boot", systemImage: "trophy.fill").font(.headline).foregroundStyle(.primary)
+                                Spacer()
+                                competitionMenu
+                            }
+                            .textCase(nil)
+                            HStack(spacing: 4) {
+                                Text("#").frame(width: 24, alignment: .leading)
+                                Text("Player").frame(maxWidth: .infinity, alignment: .leading)
+                                ForEach(StatColumn.allCases) { column in
+                                    Button(column.rawValue) { sortColumn = column }
+                                        .foregroundStyle(column == sortColumn ? AnyShapeStyle(.tint) : AnyShapeStyle(.secondary))
+                                        .frame(width: Self.stat)
+                                        .accessibilityLabel("Sort by \(column.rawValue)")
+                                }
+                            }
+                            .font(.caption.weight(.semibold))
+                            // Keep header columns over the row columns despite the row chevron.
+                            .padding(.trailing, 18)
                         }
-                        .font(.caption.weight(.semibold))
-                        // Keep header columns over the row columns despite the row chevron.
-                        .padding(.trailing, 18)
                     }
                 }
                 .listStyle(.plain)
             }
         }
         .refreshable { await load() }
-        .task { await load() }
+        .task(id: matchTypeId) { await load() }
     }
 
-    private func values(_ row: TeamPlayerStats) -> [Int] {
-        [row.gamesPlayed, row.gamesStarted, row.totalGoals, row.totalAssists, row.totalYellowCards, row.totalRedCards]
-            .map { $0 ?? 0 }
+    private var competitionMenu: some View {
+        Menu {
+            Picker("Competition", selection: $matchTypeId) {
+                Text("All competitions").tag(Int?.none)
+                ForEach(matchTypes) { Text($0.name).tag(Optional($0.id)) }
+            }
+        } label: {
+            Label(matchTypes.first { $0.id == matchTypeId }?.name ?? "All competitions",
+                  systemImage: "chevron.up.chevron.down")
+                .labelStyle(.titleAndIcon)
+                .font(.caption.weight(.semibold))
+        }
+        .textCase(nil)
     }
 
     private func load() async {
         if state.value == nil { state = .loading }
         do {
             if !filter.isLoaded { try await filter.load(using: app.client) }
-            state = .loaded(try await app.client.teamStats(teamId: team.id, seasonId: filter.seasonId))
+            if matchTypes.isEmpty {
+                matchTypes = ((try? await app.client.matchTypes()) ?? [])
+                    .sorted { ($0.displayOrder ?? .max, $0.name) < ($1.displayOrder ?? .max, $1.name) }
+            }
+            state = .loaded(try await app.client.teamStats(teamId: team.id, seasonId: filter.seasonId,
+                                                           matchTypeId: matchTypeId))
         } catch is CancellationError {
         } catch {
             app.handle(error)
