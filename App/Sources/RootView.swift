@@ -2,7 +2,7 @@ import SwiftUI
 import MTKit
 
 enum AppTab: String, CaseIterable, Hashable {
-    case table, matches, settings
+    case table, matches, profile
 }
 
 struct RootView: View {
@@ -32,8 +32,8 @@ struct MainTabs: View {
             Tab("Matches", systemImage: "sportscourt", value: AppTab.matches) {
                 NavigationStack { MatchesScreen().withRoutes() }
             }
-            Tab("Settings", systemImage: "gear", value: AppTab.settings) {
-                NavigationStack { SettingsView().withRoutes() }
+            Tab("Profile", systemImage: "person.crop.circle", value: AppTab.profile) {
+                NavigationStack { ProfileScreen().withRoutes() }
             }
         }
         .sheet(isPresented: Binding(
@@ -41,6 +41,12 @@ struct MainTabs: View {
             set: { if !$0 { push.pendingMatchId = nil } }
         )) {
             if let id = push.pendingMatchId { MatchByIdView(matchId: id) }
+        }
+        .onAppear {
+            #if DEBUG
+            // `-MTTab profile` on launch opens a tab (for simulator screenshots).
+            if let raw = UserDefaults.standard.string(forKey: "MTTab"), let start = AppTab(rawValue: raw) { tab = start }
+            #endif
         }
         .task {
             // Re-registers with APNs when permitted; the token callback uploads it.
