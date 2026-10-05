@@ -38,6 +38,18 @@ private func match(_ id: Int, _ date: String, _ status: String, score: (Int, Int
         #expect(MatchSchedule.involving([7], in: all).map(\.id) == [1, 2])
     }
 
+    @Test func weekViewIsLiveThenDaysAscending() {
+        let schedule = MatchSchedule.week([
+            match(1, "2026-10-11", "scheduled"),
+            match(2, "2026-10-05", "completed", score: (1, 0)),
+            match(3, "2026-10-07", "live", score: (0, 0)),
+            match(4, "2026-10-07", "completed", score: (2, 2)),
+        ])
+        #expect(schedule.live.map(\.id) == [3])
+        #expect(schedule.fixtures.map(\.date) == ["2026-10-05", "2026-10-07", "2026-10-11"])
+        #expect(schedule.results.isEmpty)
+    }
+
     @Test func emptyInputIsEmpty() {
         #expect(MatchSchedule([]).isEmpty)
     }

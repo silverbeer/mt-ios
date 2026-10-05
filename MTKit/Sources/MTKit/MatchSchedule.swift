@@ -24,6 +24,15 @@ public struct MatchSchedule: Sendable, Equatable {
         fixtures = Self.days(upcoming, newestFirst: false)
     }
 
+    /// Single-week view, as on the web: live first, then every day in date order
+    /// (played and upcoming together). Days land in `fixtures`; `results` is empty.
+    public static func week(_ matches: [Match]) -> MatchSchedule {
+        var schedule = MatchSchedule([])
+        schedule.live = matches.filter { $0.status == .live }.sorted(by: kickoffAscending)
+        schedule.fixtures = days(matches.filter { $0.status != .live }, newestFirst: false)
+        return schedule
+    }
+
     public var isEmpty: Bool { live.isEmpty && results.isEmpty && fixtures.isEmpty }
 
     /// Keep only matches involving any of `teamIds`.

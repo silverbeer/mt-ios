@@ -67,3 +67,31 @@ import MTKit
         #expect(PushManager.apnsEnvironment == .sandbox)
     }
 }
+
+@MainActor @Suite struct MatchesFilterStoreTests {
+    private func defaults() -> UserDefaults { UserDefaults(suiteName: "test.\(UUID().uuidString)")! }
+
+    @Test func selectionIsRememberedAcrossLaunches() {
+        let store = defaults()
+        let first = MatchesFilterStore(defaults: store)
+        first.toggle(10)
+        first.toggle(20)
+        #expect(MatchesFilterStore(defaults: store).divisionIds == [10, 20])
+    }
+
+    @Test func leagueToggleSelectsThenClearsWholeLeague() {
+        let store = MatchesFilterStore(defaults: defaults())
+        let flex = MatchFilter.LeagueGroup(id: "league-2", title: "Flex", divisions: [
+            Division(id: 20, name: "Empire", leagueId: 2), Division(id: 21, name: "New England", leagueId: 2)])
+        store.toggle(10)
+        store.toggleLeague(flex)
+        #expect(store.divisionIds == [10, 20, 21])
+        #expect(store.isWholeLeagueSelected(flex))
+        store.toggleLeague(flex)
+        #expect(store.divisionIds == [10])
+    }
+
+    @Test func emptySelectionMeansAll() {
+        #expect(MatchesFilterStore(defaults: defaults()).summary == "All divisions")
+    }
+}

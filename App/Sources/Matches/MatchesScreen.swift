@@ -1,32 +1,44 @@
 import SwiftUI
 import MTKit
 
-/// Results and fixtures for the selected division, live matches pinned on top.
+/// One Monday–Sunday week of matches for the selected division, live matches pinned
+/// on top. Week navigation matches the Android app and the web: ← · This Week · →,
+/// always opening on the current week.
 struct MatchesScreen: View {
     @Environment(AppModel.self) private var app
     @Environment(LeagueFilter.self) private var filter
     @Environment(FollowStore.self) private var follows
+    @Environment(MatchesFilterStore.self) private var divisions
     @State private var state: Loadable<[Match]> = .idle
     @AppStorage("matches.myTeamsOnly") private var myTeamsOnly = false
 
-    /// Window around today: recent results and the next few weeks of fixtures.
-    static let daysBack = 14
-    static let daysAhead = 28
+    @State private var weekOffset = 0
+    @State private var loadedWeekOffset = 0
     static let liveRefresh: Duration = .seconds(30)
 
-    private var selectionKey: [Int?] { [filter.seasonId, filter.ageGroupId, filter.divisionId] }
+    private var week: MatchWeek { MatchWeek(containing: Date(), offset: weekOffset) }
+    /// Refetch only when the season or week changes; age group and divisions filter on device.
+    private var fetchKey: [Int?] { [filter.seasonId, weekOffset] }
+    private var matchFilter: MatchFilter {
+        MatchFilter(ageGroupId: filter.ageGroupId, divisionIds: divisions.divisionIds)
+    }
 
     var body: some View {
         LoadableView(state: state, retry: load) { matches in
-            let schedule = MatchSchedule(myTeamsOnly ? MatchSchedule.involving(follows.teamIds, in: matches) : matches)
+            let selected = matchFilter.apply(to: matches)
+            let schedule = MatchSchedule.week(myTeamsOnly ? MatchSchedule.involving(follows.teamIds, in: selected) : selected)
             if schedule.isEmpty {
                 ContentUnavailableView("No Matches", systemImage: "sportscourt",
-                                       description: Text("Nothing for \(filter.summary) in the next few weeks."))
+                                       description: Text("Nothing for \(filter.ageGroup?.name ?? "this age group") · \(divisions.summary) this week."))
             } else {
                 ScheduleList(schedule: schedule)
             }
         }
+        .safeAreaInset(edge: .top, spacing: 0) {
+            WeekNavigator(offset: $weekOffset, label: week.label)
+        }
         .navigationTitle("Matches")
+        .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .topBarLeading) {
                 if !follows.teams.isEmpty {
@@ -34,10 +46,10 @@ struct MatchesScreen: View {
                         .toggleStyle(.button)
                 }
             }
-            ToolbarItem(placement: .topBarTrailing) { FilterButton() }
+            ToolbarItem(placement: .topBarTrailing) { MatchesFilterButton() }
         }
         .refreshable { await load() }
-        .task(id: selectionKey) {
+        .task(id: fetchKey) {
             await load()
             // Keep live scores fresh while this screen is visible.
             while !Task.isCancelled {
@@ -48,20 +60,63 @@ struct MatchesScreen: View {
     }
 
     private func load() async {
-        if state.value == nil { state = .loading }
+        if state.value == nil || loadedWeekOffset != weekOffset { state = .loading }
+        loadedWeekOffset = weekOffset
         do {
             if !filter.isLoaded { try await filter.load(using: app.client) }
+            if !divisions.isLoaded { try? await divisions.load(using: app.client, leagues: filter.leagues) }
             if !follows.isLoaded { try? await follows.load(using: app.client) }
-            let today = Date()
-            let start = Calendar.current.date(byAdding: .day, value: -Self.daysBack, to: today) ?? today
-            let end = Calendar.current.date(byAdding: .day, value: Self.daysAhead, to: today) ?? today
-            state = .loaded(try await app.client.matches(MatchQuery(
-                seasonId: filter.seasonId, ageGroupId: filter.ageGroupId, divisionId: filter.divisionId,
-                startDate: MTDate.dayString(start), endDate: MTDate.dayString(end))))
+            let week = self.week
+            let matches = try await app.client.matches(MatchQuery(
+                seasonId: filter.seasonId, startDate: week.startDay, endDate: week.endDay))
+            // Server bounds are inclusive dates; keep the list strictly inside the week shown.
+            state = .loaded(matches.filter { week.contains(day: $0.matchDate) })
         } catch is CancellationError {
         } catch {
             app.handle(error)
             state = .failed(error.displayMessage)
         }
+    }
+}
+
+/// ← · This Week · → with the week's dates underneath.
+struct WeekNavigator: View {
+    @Binding var offset: Int
+    let label: String
+
+    var body: some View {
+        VStack(spacing: 6) {
+            HStack(spacing: 8) {
+                Button {
+                    offset -= 1
+                } label: {
+                    Image(systemName: "chevron.left").frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.bordered)
+                .accessibilityLabel("Previous week")
+
+                Button(offset == 0 ? "This Week" : "Back to this week") { offset = 0 }
+                    .buttonStyle(.borderedProminent)
+                    .disabled(offset == 0)
+                    .frame(maxWidth: .infinity)
+                    .layoutPriority(1)
+
+                Button {
+                    offset += 1
+                } label: {
+                    Image(systemName: "chevron.right").frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.bordered)
+                .accessibilityLabel("Next week")
+            }
+            .controlSize(.regular)
+            Text(label)
+                .font(.subheadline.bold())
+                .monospacedDigit()
+        }
+        .padding(.horizontal)
+        .padding(.vertical, 8)
+        .background(.bar)
+        .sensoryFeedback(.selection, trigger: offset)
     }
 }
