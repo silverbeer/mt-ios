@@ -79,3 +79,28 @@ import Testing
         #expect(rows.first?.goalsPerGame == 1.6)
     }
 }
+
+@Suite struct ClubTeamTests {
+    @Test func decodesClubTeamsAndGroupsByAgeYoungestFirst() throws {
+        let data = json("""
+        [{"id": 1, "name": "Blues U15 HG", "city": "X", "league_name": "Homegrown", "age_group_name": "U15",
+          "division_name": "Northeast", "match_count": 12, "player_count": 18, "age_groups": [{"id": 15, "name": "U15"}],
+          "leagues": {"id": 1, "name": "Homegrown"}, "team_mappings": []},
+         {"id": 2, "name": "Blues U13", "age_group_name": "U13", "league_name": "Flex", "division_name": "Empire"},
+         {"id": 3, "name": "Blues U9", "age_group_name": "U9"},
+         {"id": 4, "name": "Blues Misc"}]
+        """)
+        let teams = try JSONDecoder.mt.decode([ClubTeam].self, from: data)
+        #expect(teams[0].subtitle == "Homegrown · Northeast")
+        let groups: [String] = ClubTeam.byAgeGroup(teams).map(\.ageGroup)
+        #expect(groups == ["U9", "U13", "U15", "Other"])
+    }
+
+    @Test func playerAccountProfileIsNilWhenForbidden() async throws {
+        let client = StubURLProtocol.client(tokens: InMemoryTokenStore(AuthTokens(accessToken: "t", refreshToken: "r"))) { _ in
+            (403, json(#"{"detail": "Not in your club"}"#))
+        }
+        let profile = try await client.playerAccountProfile(userId: "u-2")
+        #expect(profile == nil)
+    }
+}

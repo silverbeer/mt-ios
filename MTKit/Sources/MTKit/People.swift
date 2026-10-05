@@ -333,3 +333,74 @@ extension APIClient {
         ])
     }
 }
+
+/// A team in a club, from /api/clubs/{id}/teams.
+public struct ClubTeam: Decodable, Sendable, Equatable, Identifiable, Hashable {
+    public var id: Int
+    public var name: String
+    public var city: String?
+    public var leagueName: String?
+    public var ageGroupName: String?
+    public var divisionName: String?
+    public var matchCount: Int?
+    public var playerCount: Int?
+    public var ageGroups: [NamedRef]?
+
+    /// "Homegrown · Northeast".
+    public var subtitle: String { [leagueName, divisionName].compactMap { $0 }.joined(separator: " · ") }
+
+    /// Club teams grouped by age group, youngest first ("U13" < "U14"); teams without one last.
+    public static func byAgeGroup(_ teams: [ClubTeam]) -> [(ageGroup: String, teams: [ClubTeam])] {
+        Dictionary(grouping: teams) { $0.ageGroupName ?? "Other" }
+            .map { (ageGroup: $0.key, teams: $0.value.sorted { $0.name < $1.name }) }
+            .sorted { lhs, rhs in
+                if lhs.ageGroup == "Other" { return false }
+                if rhs.ageGroup == "Other" { return true }
+                return lhs.ageGroup.localizedStandardCompare(rhs.ageGroup) == .orderedAscending
+            }
+    }
+}
+
+/// A club from /api/clubs.
+public struct Club: Decodable, Sendable, Equatable, Identifiable, Hashable {
+    public var id: Int
+    public var name: String
+    public var logoUrl: String?
+    public var primaryColor: String?
+}
+
+/// Another player's account profile, /api/players/{user_id}/profile (same club only).
+public struct PlayerAccountProfile: Decodable, Sendable, Equatable {
+    public var id: String?
+    public var displayName: String?
+    public var playerNumber: Int?
+    public var positions: [String]?
+    public var photo1Url: String?
+    public var photo2Url: String?
+    public var photo3Url: String?
+    public var profilePhotoSlot: Int?
+    public var primaryColor: String?
+    public var textColor: String?
+
+    public var photos: [String] { [photo1Url, photo2Url, photo3Url].compactMap { $0 } }
+}
+
+struct PlayerAccountEnvelope: Decodable, Sendable { var player: PlayerAccountProfile }
+
+extension APIClient {
+    public func clubTeams(clubId: Int) async throws -> [ClubTeam] {
+        try await get("/api/clubs/\(clubId)/teams")
+    }
+
+    public func clubs() async throws -> [Club] { try await get("/api/clubs", query: ["include_teams": "false"]) }
+
+    /// Nil when the viewer may not see it (different club → 403) or it doesn't exist.
+    public func playerAccountProfile(userId: String) async throws -> PlayerAccountProfile? {
+        do {
+            let envelope: PlayerAccountEnvelope = try await get("/api/players/\(userId)/profile")
+            return envelope.player
+        } catch APIError.http(let status, _) where status == 403 || status == 404 {
+            return nil
+        }
+    }
+}
