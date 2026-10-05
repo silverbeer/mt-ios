@@ -21,6 +21,11 @@ struct MissingTableApp: App {
                 .onAppear {
                     delegate.push = push
                     push.attach(app)
+                    #if DEBUG
+                    // `-MTMatch <id>` opens a match as if from a notification (simulator screenshots).
+                    let debugMatch = UserDefaults.standard.integer(forKey: "MTMatch")
+                    if debugMatch > 0 { push.pendingMatchId = debugMatch }
+                    #endif
                     follows.onFirstFollow = { [push] in
                         Task { await push.requestAuthorizationIfNeeded() }
                     }
