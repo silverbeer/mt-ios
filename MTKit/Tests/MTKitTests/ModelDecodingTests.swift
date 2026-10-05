@@ -56,3 +56,16 @@ import Testing
         #expect(live.recentEvents?.first?.playerName == "Sam")
     }
 }
+
+@Suite struct KeychainTokenStoreTests {
+    /// `swift test` runs unsigned, where the keychain may refuse access; the
+    /// in-memory copy must still round-trip within the process.
+    @Test func sessionSurvivesWithinProcessEvenIfKeychainRefuses() {
+        let store = KeychainTokenStore(service: "io.silverbeer.mt.test.\(UUID().uuidString)")
+        let tokens = AuthTokens(accessToken: "a", refreshToken: "r")
+        store.save(tokens)
+        #expect(store.load() == tokens)
+        store.save(nil)
+        #expect(store.load() == nil)
+    }
+}
