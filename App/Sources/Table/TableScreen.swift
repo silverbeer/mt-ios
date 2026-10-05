@@ -47,13 +47,15 @@ private struct StandingsList: View {
         List {
             Section {
                 ForEach(Array(rows.enumerated()), id: \.element.id) { index, row in
-                    if let teamId = row.teamId {
-                        NavigationLink(value: TeamRoute(id: teamId, name: row.team)) {
-                            StandingRowView(position: index + 1, row: row)
+                    // The link is a hidden background so the row gets no disclosure chevron,
+                    // which would push the stat columns out of line with the header.
+                    StandingRowView(position: index + 1, row: row)
+                        .background {
+                            if let teamId = row.teamId {
+                                NavigationLink(value: TeamRoute(id: teamId, name: row.team)) { EmptyView() }
+                                    .opacity(0)
+                            }
                         }
-                    } else {
-                        StandingRowView(position: index + 1, row: row)
-                    }
                 }
             } header: {
                 VStack(alignment: .leading, spacing: 8) {
@@ -69,12 +71,12 @@ private struct StandingsList: View {
 }
 
 private enum Columns {
-    static let position: CGFloat = 20
+    static let position: CGFloat = 26
     static let stat: CGFloat = 24
     static let points: CGFloat = 32
 }
 
-/// Phone layout: # · Team · GP · W · D · L · PTS, with last-5 form under the team name.
+/// Phone layout: # · Team · GP · W · D · L · PTS. Header and rows share `Columns` widths.
 private struct StandingHeader: View {
     var body: some View {
         HStack(spacing: 4) {
@@ -92,32 +94,36 @@ private struct StandingHeader: View {
 struct StandingRowView: View {
     let position: Int
     let row: StandingRow
+    /// Last-5 form only where there's room (iPad, landscape); never on a portrait phone.
+    @Environment(\.horizontalSizeClass) private var sizeClass
 
     var body: some View {
         HStack(spacing: 4) {
             Text("\(position)")
                 .frame(width: Columns.position, alignment: .leading)
                 .foregroundStyle(.secondary)
-            VStack(alignment: .leading, spacing: 3) {
+            HStack(spacing: 8) {
                 Text(row.team)
-                    .font(.subheadline)
                     .lineLimit(1)
                     .truncationMode(.tail)
-                if let form = row.form, !form.isEmpty { FormStrip(results: form) }
+                if sizeClass == .regular, let form = row.form, !form.isEmpty { FormStrip(results: form) }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
-            ForEach(Array([row.played, row.wins, row.draws, row.losses].enumerated()), id: \.offset) { _, value in
-                Text("\(value)")
-                    .frame(width: Columns.stat)
-                    .foregroundStyle(.secondary)
+            Group {
+                ForEach(Array([row.played, row.wins, row.draws, row.losses].enumerated()), id: \.offset) { _, value in
+                    Text("\(value)")
+                        .frame(width: Columns.stat)
+                        .foregroundStyle(.secondary)
+                }
+                Text("\(row.points)")
+                    .bold()
+                    .frame(width: Columns.points)
             }
-            Text("\(row.points)")
-                .bold()
-                .frame(width: Columns.points)
+            .lineLimit(1)
+            .minimumScaleFactor(0.7)
         }
         .font(.subheadline.monospacedDigit())
-        .lineLimit(1)
-        .minimumScaleFactor(0.7)
+        .contentShape(Rectangle())
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("\(position). \(row.team), \(row.points) points, played \(row.played), "
             + "won \(row.wins), drawn \(row.draws), lost \(row.losses), goal difference \(row.goalDifference)")
