@@ -104,3 +104,22 @@ import Testing
         #expect(profile == nil)
     }
 }
+
+@Suite struct StatColumnTests {
+    private func row(_ id: Int, _ name: String, goals: Int, assists: Int, gp: Int) -> TeamPlayerStats {
+        TeamPlayerStats(playerId: id, jerseyNumber: id, firstName: name, lastName: nil, gamesPlayed: gp,
+                        gamesStarted: 0, totalMinutes: 0, totalGoals: goals, totalAssists: assists,
+                        totalYellowCards: 0, totalRedCards: 0)
+    }
+
+    @Test func sortsDescendingWithGoalsThenNameTiebreak() {
+        let rows = [row(1, "Cy", goals: 1, assists: 3, gp: 5), row(2, "Al", goals: 4, assists: 3, gp: 5),
+                    row(3, "Bo", goals: 4, assists: 0, gp: 7)]
+        let byAssists: [Int] = StatColumn.assists.sort(rows).map(\.playerId)
+        #expect(byAssists == [2, 1, 3])
+        let byGoals: [Int] = StatColumn.goals.sort(rows).map(\.playerId)
+        #expect(byGoals == [2, 3, 1])
+        let byGP: [Int] = StatColumn.gp.sort(rows).map(\.playerId)
+        #expect(byGP == [3, 2, 1])
+    }
+}

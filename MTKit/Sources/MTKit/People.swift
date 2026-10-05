@@ -318,11 +318,14 @@ extension APIClient {
         return response.roster
     }
 
-    public func teamStats(teamId: Int, seasonId: Int?) async throws -> [TeamPlayerStats] {
-        let response: TeamStatsResponse = try await get("/api/teams/\(teamId)/stats",
-                                                        query: ["season_id": seasonId.map(String.init)])
+    public func teamStats(teamId: Int, seasonId: Int?, matchTypeId: Int? = nil) async throws -> [TeamPlayerStats] {
+        let response: TeamStatsResponse = try await get("/api/teams/\(teamId)/stats", query: [
+            "season_id": seasonId.map(String.init), "match_type_id": matchTypeId.map(String.init),
+        ])
         return response.players
     }
+
+    public func matchTypes() async throws -> [MatchType] { try await get("/api/match-types") }
 
     public func goalLeaders(seasonId: Int, ageGroupId: Int?, leagueId: Int?, divisionId: Int?,
                             limit: Int = 50) async throws -> [LeaderboardEntry] {
@@ -401,6 +404,42 @@ extension APIClient {
             return envelope.player
         } catch APIError.http(let status, _) where status == 403 || status == 404 {
             return nil
+        }
+    }
+}
+
+/// Competition type (League, Flex, Cup, …) from /api/match-types.
+public struct MatchType: Decodable, Sendable, Equatable, Identifiable, Hashable {
+    public var id: Int
+    public var name: String
+    public var displayOrder: Int?
+}
+
+/// Sortable Golden Boot columns (web GoldenBoot.vue statColumns).
+public enum StatColumn: String, CaseIterable, Sendable, Identifiable {
+    case gp = "GP", gs = "GS", goals = "G", assists = "A", yellow = "YC", red = "RC"
+
+    public var id: String { rawValue }
+
+    public func value(_ row: TeamPlayerStats) -> Int {
+        switch self {
+        case .gp: row.gamesPlayed ?? 0
+        case .gs: row.gamesStarted ?? 0
+        case .goals: row.totalGoals ?? 0
+        case .assists: row.totalAssists ?? 0
+        case .yellow: row.totalYellowCards ?? 0
+        case .red: row.totalRedCards ?? 0
+        }
+    }
+
+    /// Highest first; ties broken by goals, then name, so the order is stable.
+    public func sort(_ rows: [TeamPlayerStats]) -> [TeamPlayerStats] {
+        rows.sorted { a, b in
+            let (va, vb) = (value(a), value(b))
+            if va != vb { return va > vb }
+            let (ga, gb) = (a.totalGoals ?? 0, b.totalGoals ?? 0)
+            if ga != gb { return ga > gb }
+            return a.name < b.name
         }
     }
 }
