@@ -4,7 +4,7 @@ import MTKit
 @testable import MissingTable
 
 @Test func appTabsAreDefined() {
-    #expect(AppTab.allCases.count == 4)
+    #expect(AppTab.allCases.count == 5)
 }
 
 @MainActor @Suite struct AppModelTests {

@@ -37,6 +37,16 @@ struct MatchDetailView: View {
                 .padding(.vertical, 8)
             }
 
+            if status == .live {
+                Section {
+                    NavigationLink {
+                        LiveMatchView(matchId: match.id)
+                    } label: {
+                        Label("Live updates & chat", systemImage: "bubble.left.and.bubble.right.fill")
+                    }
+                }
+            }
+
             if !timeline.isEmpty {
                 Section("Timeline") {
                     ForEach(timeline.all) { event in
@@ -58,11 +68,21 @@ struct MatchDetailView: View {
         .navigationTitle("\(match.homeTeamName) v \(match.awayTeamName)")
         .navigationBarTitleDisplayMode(.inline)
         .refreshable { await refresh() }
-        .task { await pollWhileLive() }
+        .task { await refresh() }
+        .task(id: status == .live) { await followRealtime() }
+        .task(id: status == .live) { await pollWhileLive() }
     }
 
+    /// While live: refresh on every Realtime change signal.
+    private func followRealtime() async {
+        guard status == .live else { return }
+        for await _ in MatchRealtime.changes(matchId: match.id, config: app.environment.realtime) {
+            await refresh()
+        }
+    }
+
+    /// While live: refresh every 15s as a fallback to Realtime.
     private func pollWhileLive() async {
-        await refresh()
         while !Task.isCancelled, status == .live {
             try? await Task.sleep(for: Self.livePoll)
             await refresh()
@@ -88,7 +108,7 @@ struct MatchDetailView: View {
 
 // MARK: - Scoreboard
 
-private struct Scoreboard: View {
+struct Scoreboard: View {
     let match: Match
     let status: MatchStatus
     let homeScore: Int?
@@ -172,7 +192,7 @@ private struct StatusLine: View {
 // MARK: - Scorers and cards
 
 /// Home events on the left, away on the right, as under the web scoreboard.
-private struct TeamEventColumns: View {
+struct TeamEventColumns: View {
     let timeline: MatchTimeline
 
     var body: some View {
@@ -205,7 +225,7 @@ private struct TeamEventColumns: View {
     }
 }
 
-private struct CardIcon: View {
+struct CardIcon: View {
     let red: Bool
 
     var body: some View {
@@ -217,7 +237,7 @@ private struct CardIcon: View {
 
 // MARK: - Timeline
 
-private struct TimelineRow: View {
+struct TimelineRow: View {
     let event: MatchEvent
     let match: Match
 

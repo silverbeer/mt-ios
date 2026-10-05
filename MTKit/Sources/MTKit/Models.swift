@@ -264,6 +264,17 @@ public struct LiveMatchSummary: Codable, Sendable, Equatable, Identifiable {
     public var kickoffTime: String?
 
     public var id: Int { matchId }
+
+    public init(matchId: Int, matchStatus: MatchStatus? = nil, homeScore: Int? = nil, awayScore: Int? = nil,
+                homeTeamName: String? = nil, awayTeamName: String? = nil, kickoffTime: String? = nil) {
+        self.matchId = matchId
+        self.matchStatus = matchStatus
+        self.homeScore = homeScore
+        self.awayScore = awayScore
+        self.homeTeamName = homeTeamName
+        self.awayTeamName = awayTeamName
+        self.kickoffTime = kickoffTime
+    }
 }
 
 public struct MatchEvent: Codable, Sendable, Equatable, Identifiable {
@@ -277,6 +288,8 @@ public struct MatchEvent: Codable, Sendable, Equatable, Identifiable {
     public var extraTime: Int?
     public var message: String?
     public var createdAt: String?
+    public var createdBy: String?
+    public var createdByUsername: String?
 }
 
 /// `GET /api/matches/{id}/live` — the live clock fields the minute is derived from.

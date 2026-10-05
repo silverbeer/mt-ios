@@ -85,7 +85,24 @@ public enum LiveClock {
     }
 }
 
+struct ChatMessageRequest: Encodable, Sendable {
+    var message: String
+    var clientEventId: String
+}
+
 extension APIClient {
+    /// Post a live chat message. Idempotent on `clientEventId` (a retry won't duplicate).
+    public func postMessage(matchId: Int, text: String, clientEventId: String = UUID().uuidString)
+        async throws -> MatchEvent {
+        try await send("POST", "/api/matches/\(matchId)/live/message",
+                       body: ChatMessageRequest(message: text, clientEventId: clientEventId))
+    }
+
+    /// Soft-delete an event (moderation). The backend allows managers of the match only.
+    public func deleteEvent(matchId: Int, eventId: Int) async throws {
+        try await sendIgnoringBody("DELETE", "/api/matches/\(matchId)/live/events/\(eventId)")
+    }
+
     /// Up to 100 events for a match (goals, cards, subs, status changes).
     public func events(matchId: Int) async throws -> [MatchEvent] {
         try await get("/api/matches/\(matchId)/live/events", query: ["limit": "100"])
