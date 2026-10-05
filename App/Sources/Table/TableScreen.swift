@@ -15,10 +15,11 @@ struct TableScreen: View {
                 ContentUnavailableView("No Standings", systemImage: "list.number",
                                        description: Text("No league results for \(filter.summary) yet."))
             } else {
-                StandingsList(rows: rows)
+                StandingsList(rows: rows, title: filter.division?.name)
             }
         }
-        .navigationTitle(filter.division?.name ?? "Table")
+        .navigationTitle(filter.ageGroup?.name ?? "Table")
+        .navigationBarTitleDisplayMode(.inline)
         .toolbar { ToolbarItem(placement: .topBarTrailing) { FilterButton() } }
         .refreshable { await load() }
         .task(id: selectionKey) { await load() }
@@ -40,21 +41,29 @@ struct TableScreen: View {
 
 private struct StandingsList: View {
     let rows: [StandingRow]
+    let title: String?
 
     var body: some View {
         List {
             Section {
                 ForEach(Array(rows.enumerated()), id: \.element.id) { index, row in
-                    if let teamId = row.teamId {
-                        NavigationLink(value: TeamRoute(id: teamId, name: row.team)) {
-                            StandingRowView(position: index + 1, row: row)
+                    // The link is a hidden background so the row gets no disclosure chevron,
+                    // which would push the stat columns out of line with the header.
+                    StandingRowView(position: index + 1, row: row)
+                        .background {
+                            if let teamId = row.teamId {
+                                NavigationLink(value: TeamRoute(id: teamId, name: row.team)) { EmptyView() }
+                                    .opacity(0)
+                            }
                         }
-                    } else {
-                        StandingRowView(position: index + 1, row: row)
-                    }
                 }
             } header: {
-                StandingHeader()
+                VStack(alignment: .leading, spacing: 8) {
+                    if let title {
+                        Text(title).font(.headline).foregroundStyle(.primary).textCase(nil)
+                    }
+                    StandingHeader()
+                }
             }
         }
         .listStyle(.plain)
@@ -62,53 +71,62 @@ private struct StandingsList: View {
 }
 
 private enum Columns {
-    static let position: CGFloat = 24
-    static let stat: CGFloat = 26
+    static let position: CGFloat = 26
+    static let stat: CGFloat = 24
     static let points: CGFloat = 32
 }
 
+/// Phone layout: # · Team · GP · W · D · L · PTS. Header and rows share `Columns` widths.
 private struct StandingHeader: View {
     var body: some View {
         HStack(spacing: 4) {
             Text("#").frame(width: Columns.position, alignment: .leading)
             Text("Team").frame(maxWidth: .infinity, alignment: .leading)
-            ForEach(["P", "W", "D", "L", "GD"], id: \.self) { Text($0).frame(width: Columns.stat) }
-            Text("Pts").frame(width: Columns.points)
+            ForEach(["GP", "W", "D", "L"], id: \.self) { Text($0).frame(width: Columns.stat) }
+            Text("PTS").frame(width: Columns.points)
         }
         .font(.caption.weight(.semibold))
         .foregroundStyle(.secondary)
+        .lineLimit(1)
     }
 }
 
 struct StandingRowView: View {
     let position: Int
     let row: StandingRow
+    /// Last-5 form only where there's room (iPad, landscape); never on a portrait phone.
+    @Environment(\.horizontalSizeClass) private var sizeClass
 
     var body: some View {
         HStack(spacing: 4) {
             Text("\(position)")
                 .frame(width: Columns.position, alignment: .leading)
                 .foregroundStyle(.secondary)
-            VStack(alignment: .leading, spacing: 2) {
-                Text(row.team).lineLimit(1)
-                if let form = row.form, !form.isEmpty { FormStrip(results: form) }
+            HStack(spacing: 8) {
+                Text(row.team)
+                    .lineLimit(1)
+                    .truncationMode(.tail)
+                if sizeClass == .regular, let form = row.form, !form.isEmpty { FormStrip(results: form) }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             Group {
-                Text("\(row.played)")
-                Text("\(row.wins)")
-                Text("\(row.draws)")
-                Text("\(row.losses)")
-                Text(row.goalDifference > 0 ? "+\(row.goalDifference)" : "\(row.goalDifference)")
+                ForEach(Array([row.played, row.wins, row.draws, row.losses].enumerated()), id: \.offset) { _, value in
+                    Text("\(value)")
+                        .frame(width: Columns.stat)
+                        .foregroundStyle(.secondary)
+                }
+                Text("\(row.points)")
+                    .bold()
+                    .frame(width: Columns.points)
             }
-            .frame(width: Columns.stat)
-            .foregroundStyle(.secondary)
-            Text("\(row.points)").bold().frame(width: Columns.points)
+            .lineLimit(1)
+            .minimumScaleFactor(0.7)
         }
         .font(.subheadline.monospacedDigit())
+        .contentShape(Rectangle())
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("\(position). \(row.team), \(row.points) points, played \(row.played), "
-            + "won \(row.wins), drawn \(row.draws), lost \(row.losses)")
+            + "won \(row.wins), drawn \(row.draws), lost \(row.losses), goal difference \(row.goalDifference)")
     }
 }
 
