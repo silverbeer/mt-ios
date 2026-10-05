@@ -1,0 +1,81 @@
+import Foundation
+import Testing
+@testable import MTKit
+
+@Suite struct PeopleTests {
+    @Test func decodesMeProfileWithNestedTeamsAndPhotos() throws {
+        let data = json("""
+        {"success": true, "user": {"id": "u-1", "email": "g@x.y", "profile": {
+          "username": "gabe35", "role": "team_player", "display_name": null, "first_name": "Gabe", "last_name": "S",
+          "player_number": 35, "positions": ["CM", "CAM"], "photo_1_url": null, "photo_2_url": "https://p/2.jpg",
+          "photo_3_url": null, "profile_photo_slot": 2, "primary_color": "#1E40AF",
+          "club": null,
+          "team": {"id": 7, "name": "Blues U15", "city": "X", "club": {"id": 3, "name": "Blues FC", "logo_url": "https://l"}},
+          "current_teams": [{"team_id": 7, "team": {"id": 7, "name": "Blues U15", "club": {"id": 3, "name": "Blues FC"},
+              "league": {"id": 1, "name": "Homegrown"}, "division": {"id": 4, "name": "Northeast"}},
+            "season": {"id": 9, "name": "2026-2027"}, "age_group": {"id": 15, "name": "U15"},
+            "league": null, "division": null}]}}}
+        """)
+        let profile = try JSONDecoder.mt.decode(ProfileEnvelope.self, from: data).profile
+        #expect(profile.id == "u-1")
+        #expect(profile.email == "g@x.y")
+        #expect(profile.kind == .player)
+        #expect(profile.fullName == "Gabe S")
+        #expect(profile.profilePhotoUrl == "https://p/2.jpg")
+        #expect(profile.displayClub?.name == "Blues FC")
+        #expect(profile.currentTeams?.first?.subtitle == "U15 · Homegrown · Northeast")
+    }
+
+    @Test func roleSpellingsNormalize() {
+        #expect(Role(raw: "club_manager") == .clubManager)
+        #expect(Role(raw: "team-manager") == .teamManager)
+        #expect(Role(raw: "club-fan") == .clubFan)
+        #expect(Role(raw: nil) == .teamFan)
+        #expect(!Role.teamFan.seesClubTeams)
+        #expect(Role.clubFan.seesClubTeams)
+    }
+
+    @Test func statsFallbackWithoutAssistsDecodesZeros() throws {
+        let data = json(#"{"player_id": 5, "season_id": 9, "stats": {"games_played": 3, "games_started": 2, "total_minutes": 120, "total_goals": 1}, "linked": true}"#)
+        let response = try JSONDecoder.mt.decode(PlayerStatsResponse.self, from: data)
+        #expect(response.stats == SeasonStats(gamesPlayed: 3, gamesStarted: 2, totalMinutes: 120, totalGoals: 1))
+        #expect(response.linked == true)
+    }
+
+    @Test func rosterNamesAndPhotos() throws {
+        let data = json("""
+        {"success": true, "roster": [
+          {"id": 1, "jersey_number": 9, "first_name": "Sam", "last_name": "Lee", "display_name": "Sammy",
+           "has_account": true, "user_profile": {"id": "u", "photo_1_url": "https://a", "profile_photo_slot": 1}},
+          {"id": 2, "jersey_number": 4, "first_name": null, "last_name": null, "display_name": null, "user_profile": null}]}
+        """)
+        let roster = try JSONDecoder.mt.decode(RosterResponse.self, from: data).roster
+        let names: [String] = roster.map(\.name)
+        #expect(names == ["Sammy", "#4"])
+        #expect(roster[0].photoUrl == "https://a")
+        #expect(roster[1].photoUrl == nil)
+    }
+
+    @Test func teamRecordCountsOnlyFinishedScoredMatches() {
+        func m(_ id: Int, _ home: Int, _ away: Int, _ hs: Int?, _ as_: Int?, _ status: String) -> Match {
+            Match(id: id, matchDate: "d", homeTeamId: home, awayTeamId: away, homeTeamName: "", awayTeamName: "",
+                  homeScore: hs, awayScore: as_, matchStatus: MatchStatus(rawValue: status))
+        }
+        let record = TeamRecord(teamId: 7, matches: [
+            m(1, 7, 8, 2, 1, "completed"), m(2, 9, 7, 1, 1, "completed"), m(3, 7, 9, 0, 3, "completed"),
+            m(4, 7, 8, nil, nil, "scheduled"), m(5, 7, 8, 1, 0, "live"),
+        ])
+        let counts: [Int] = [record.played, record.wins, record.draws, record.losses]
+        #expect(counts == [3, 1, 1, 1])
+        let goals: [Int] = [record.goalsFor, record.goalsAgainst]
+        #expect(goals == [3, 5])
+        #expect(record.winPercentage == 33)
+    }
+
+    @Test func leaderboardDecodes() throws {
+        let data = json(#"[{"player_id": 3, "jersey_number": 10, "first_name": "Ana", "last_name": "B", "team_id": 7, "team_name": "Blues", "goals": 8, "games_played": 5, "rank": 1, "goals_per_game": 1.6}]"#)
+        let rows = try JSONDecoder.mt.decode([LeaderboardEntry].self, from: data)
+        #expect(rows.first?.name == "Ana B")
+        #expect(rows.first?.goalsPerGame == 1.6)
+    }
+}
