@@ -15,10 +15,11 @@ struct TableScreen: View {
                 ContentUnavailableView("No Standings", systemImage: "list.number",
                                        description: Text("No league results for \(filter.summary) yet."))
             } else {
-                StandingsList(rows: rows)
+                StandingsList(rows: rows, title: filter.division?.name)
             }
         }
-        .navigationTitle(filter.division?.name ?? "Table")
+        .navigationTitle(filter.ageGroup?.name ?? "Table")
+        .navigationBarTitleDisplayMode(.inline)
         .toolbar { ToolbarItem(placement: .topBarTrailing) { FilterButton() } }
         .refreshable { await load() }
         .task(id: selectionKey) { await load() }
@@ -40,6 +41,7 @@ struct TableScreen: View {
 
 private struct StandingsList: View {
     let rows: [StandingRow]
+    let title: String?
 
     var body: some View {
         List {
@@ -54,7 +56,12 @@ private struct StandingsList: View {
                     }
                 }
             } header: {
-                StandingHeader()
+                VStack(alignment: .leading, spacing: 8) {
+                    if let title {
+                        Text(title).font(.headline).foregroundStyle(.primary).textCase(nil)
+                    }
+                    StandingHeader()
+                }
             }
         }
         .listStyle(.plain)
@@ -62,21 +69,24 @@ private struct StandingsList: View {
 }
 
 private enum Columns {
-    static let position: CGFloat = 24
-    static let stat: CGFloat = 26
-    static let points: CGFloat = 32
+    static let position: CGFloat = 22
+    static let stat: CGFloat = 30
+    static let points: CGFloat = 34
 }
 
+/// Compact phone layout: # · Team · P · GD · Pts. W-D-L and form sit under the team name.
 private struct StandingHeader: View {
     var body: some View {
-        HStack(spacing: 4) {
+        HStack(spacing: 6) {
             Text("#").frame(width: Columns.position, alignment: .leading)
             Text("Team").frame(maxWidth: .infinity, alignment: .leading)
-            ForEach(["P", "W", "D", "L", "GD"], id: \.self) { Text($0).frame(width: Columns.stat) }
+            Text("P").frame(width: Columns.stat)
+            Text("GD").frame(width: Columns.stat)
             Text("Pts").frame(width: Columns.points)
         }
         .font(.caption.weight(.semibold))
         .foregroundStyle(.secondary)
+        .lineLimit(1)
     }
 }
 
@@ -85,30 +95,39 @@ struct StandingRowView: View {
     let row: StandingRow
 
     var body: some View {
-        HStack(spacing: 4) {
+        HStack(spacing: 6) {
             Text("\(position)")
                 .frame(width: Columns.position, alignment: .leading)
                 .foregroundStyle(.secondary)
-            VStack(alignment: .leading, spacing: 2) {
-                Text(row.team).lineLimit(1)
-                if let form = row.form, !form.isEmpty { FormStrip(results: form) }
+            VStack(alignment: .leading, spacing: 3) {
+                Text(row.team)
+                    .font(.subheadline)
+                    .lineLimit(1)
+                    .truncationMode(.tail)
+                HStack(spacing: 6) {
+                    Text("\(row.wins)-\(row.draws)-\(row.losses)")
+                        .font(.caption2.monospacedDigit())
+                        .foregroundStyle(.secondary)
+                    if let form = row.form, !form.isEmpty { FormStrip(results: form) }
+                }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
-            Group {
-                Text("\(row.played)")
-                Text("\(row.wins)")
-                Text("\(row.draws)")
-                Text("\(row.losses)")
-                Text(row.goalDifference > 0 ? "+\(row.goalDifference)" : "\(row.goalDifference)")
-            }
-            .frame(width: Columns.stat)
-            .foregroundStyle(.secondary)
-            Text("\(row.points)").bold().frame(width: Columns.points)
+            Text("\(row.played)")
+                .frame(width: Columns.stat)
+                .foregroundStyle(.secondary)
+            Text(row.goalDifference > 0 ? "+\(row.goalDifference)" : "\(row.goalDifference)")
+                .frame(width: Columns.stat)
+                .foregroundStyle(.secondary)
+            Text("\(row.points)")
+                .bold()
+                .frame(width: Columns.points)
         }
         .font(.subheadline.monospacedDigit())
+        .lineLimit(1)
+        .minimumScaleFactor(0.7)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("\(position). \(row.team), \(row.points) points, played \(row.played), "
-            + "won \(row.wins), drawn \(row.draws), lost \(row.losses)")
+            + "won \(row.wins), drawn \(row.draws), lost \(row.losses), goal difference \(row.goalDifference)")
     }
 }
 
