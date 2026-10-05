@@ -10,3 +10,6 @@ build/
 *.p8
 fastlane/report.xml
 App/Info.plist
+
+# Claude Code session state
+.claude/

@@ -10,12 +10,12 @@ public struct RealtimeConfig: Sendable, Equatable {
 
     public static let production = RealtimeConfig(
         url: URL(string: "wss://ppgxasqgqbnauvxozmjw.supabase.co/realtime/v1/websocket")!,
-        anonKey: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBwZ3hhc3FncWJuYXV2eG96bWp3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTk1ODQ1NTgsImV4cCI6MjA3NTE2MDU1OH0.q-H9jS8fnPXyFY5M0rq5MO3_8dniFu5OxaKhL1r_2TU") // pragma: allowlist secret
+        anonKey: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBwZ3hhc3FncWJuYXV2eG96bWp3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTk1ODQ1NTgsImV4cCI6MjA3NTE2MDU1OH0.q-H9jS8fnPXyFY5M0rq5MO3_8dniFu5OxaKhL1r_2TU") // pragma: allowlist secret gitleaks:allow (public anon key)
 
     /// Local Supabase CLI demo key, the same for every local instance.
     public static let local = RealtimeConfig(
         url: URL(string: "ws://localhost:55321/realtime/v1/websocket")!,
-        anonKey: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJleHAiOjE5ODM4MTI5OTZ9.CRXP1A7WOeoJeXxjNni43kdQwgnWNReilDMblYTn_I0") // pragma: allowlist secret
+        anonKey: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJleHAiOjE5ODM4MTI5OTZ9.CRXP1A7WOeoJeXxjNni43kdQwgnWNReilDMblYTn_I0") // pragma: allowlist secret gitleaks:allow (public anon key)
 }
 
 extension APIEnvironment {
