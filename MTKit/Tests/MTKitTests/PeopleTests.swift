@@ -193,6 +193,19 @@ private final class Recorded: @unchecked Sendable {
         #expect(seen.values.last == "all")
     }
 
+    @Test func everyCompetitionRequestCarriesTheAgeGroup() async throws {
+        let seen = Recorded()
+        let client = StubURLProtocol.client(tokens: InMemoryTokenStore(AuthTokens(accessToken: "t", refreshToken: "r"))) { request in
+            seen.append(URLComponents(url: request.url!, resolvingAgainstBaseURL: false)?
+                .queryItems?.first { $0.name == "age_group_id" }?.value ?? "none")
+            return (200, json(#"{"players": []}"#))
+        }
+        _ = try await client.teamStats(teamId: 1, seasonId: 3, matchTypeIds: [1, 2], ageGroupId: 15)
+        _ = try await client.teamStats(teamId: 1, seasonId: 3, matchTypeIds: [], ageGroupId: 15)
+        _ = try await client.teamStats(teamId: 1, seasonId: 3, matchTypeIds: [])
+        #expect(seen.values == ["15", "15", "15", "none"])
+    }
+
     @Test func selectionLabel() {
         let types = [MatchType(id: 1, name: "League"), MatchType(id: 2, name: "Flex"), MatchType(id: 3, name: "Cup")]
         #expect(MatchType.selectionLabel([], of: types) == "All competitions")
