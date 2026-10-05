@@ -12,6 +12,8 @@ final class AppModel {
     }
 
     private(set) var phase: Phase = .launching
+    /// Full profile (role, club, teams); drives which tabs a user gets.
+    private(set) var profile: MyProfile?
     private(set) var client: APIClient
     private(set) var environment: APIEnvironment
     private let defaults: UserDefaults
@@ -28,6 +30,8 @@ final class AppModel {
         self.client = APIClient(baseURL: environment.baseURL, tokens: makeTokens(environment))
     }
 
+    var role: Role { profile?.kind ?? Role(raw: user?.role) }
+
     var user: User? {
         if case .signedIn(let user) = phase { return user }
         return nil
@@ -40,7 +44,9 @@ final class AppModel {
             return
         }
         do {
-            phase = .signedIn(try await client.me())
+            let user = try await client.me()
+            profile = try? await client.profile()
+            phase = .signedIn(user)
         } catch APIError.unauthorized {
             phase = .signedOut
         } catch {
@@ -52,17 +58,22 @@ final class AppModel {
     func login(username: String, password: String) async throws {
         _ = try await client.login(username: username, password: password)
         let user = (try? await client.me()) ?? User(id: "", username: username)
+        profile = try? await client.profile()
         phase = .signedIn(user)
     }
 
     func logout() async {
         await client.logout()
+        profile = nil
         phase = .signedOut
     }
 
     /// Call from any screen's catch: a dead session sends the user back to sign-in.
     func handle(_ error: any Error) {
-        if case APIError.unauthorized = error { phase = .signedOut }
+        if case APIError.unauthorized = error {
+            profile = nil
+            phase = .signedOut
+        }
     }
 
     func switchEnvironment(_ environment: APIEnvironment) async {

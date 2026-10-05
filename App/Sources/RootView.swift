@@ -2,7 +2,7 @@ import SwiftUI
 import MTKit
 
 enum AppTab: String, CaseIterable, Hashable {
-    case table, matches, profile
+    case table, matches, club, profile
 }
 
 struct RootView: View {
@@ -21,6 +21,7 @@ struct RootView: View {
 }
 
 struct MainTabs: View {
+    @Environment(AppModel.self) private var app
     @Environment(PushManager.self) private var push
     @SceneStorage("tab") private var tab: AppTab = .table
 
@@ -31,6 +32,11 @@ struct MainTabs: View {
             }
             Tab("Matches", systemImage: "sportscourt", value: AppTab.matches) {
                 NavigationStack { MatchesScreen().withRoutes() }
+            }
+            if app.role.seesClubTeams {
+                Tab("My Club", systemImage: "shield.lefthalf.filled", value: AppTab.club) {
+                    NavigationStack { ClubScreen().withRoutes() }
+                }
             }
             Tab("Profile", systemImage: "person.crop.circle", value: AppTab.profile) {
                 NavigationStack { ProfileScreen().withRoutes() }
@@ -61,5 +67,6 @@ extension View {
     func withRoutes() -> some View {
         navigationDestination(for: TeamRoute.self) { TeamView(team: $0) }
             .navigationDestination(for: Match.self) { MatchDetailView(match: $0) }
+            .navigationDestination(for: PlayerRoute.self) { PlayerView(player: $0) }
     }
 }
