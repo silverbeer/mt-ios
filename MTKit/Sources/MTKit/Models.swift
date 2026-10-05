@@ -211,6 +211,8 @@ public struct Match: Codable, Sendable, Equatable, Identifiable, Hashable {
     public var divisionName: String?
     public var leagueName: String?
     public var matchTypeName: String?
+    public var seasonName: String?
+    public var scoringMode: String?
     public var homeTeamClub: TeamClub?
     public var awayTeamClub: TeamClub?
 
@@ -246,6 +248,8 @@ public struct Match: Codable, Sendable, Equatable, Identifiable, Hashable {
     }
 
     public var status: MatchStatus { matchStatus ?? .scheduled }
+    /// Scored live from the touchline app, so it has an event timeline.
+    public var isLiveScored: Bool { scoringMode == "live" }
     public var hasScore: Bool { homeScore != nil && awayScore != nil }
 }
 
@@ -268,6 +272,7 @@ public struct MatchEvent: Codable, Sendable, Equatable, Identifiable {
     public var eventType: String
     public var teamId: Int?
     public var playerName: String?
+    public var assistPlayerName: String?
     public var matchMinute: Int?
     public var extraTime: Int?
     public var message: String?
