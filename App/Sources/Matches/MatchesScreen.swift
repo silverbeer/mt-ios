@@ -8,6 +8,7 @@ struct MatchesScreen: View {
     @Environment(AppModel.self) private var app
     @Environment(LeagueFilter.self) private var filter
     @Environment(FollowStore.self) private var follows
+    @Environment(MatchesFilterStore.self) private var divisions
     @State private var state: Loadable<[Match]> = .idle
     @AppStorage("matches.myTeamsOnly") private var myTeamsOnly = false
 
@@ -16,14 +17,19 @@ struct MatchesScreen: View {
     static let liveRefresh: Duration = .seconds(30)
 
     private var week: MatchWeek { MatchWeek(containing: Date(), offset: weekOffset) }
-    private var selectionKey: [Int?] { [filter.seasonId, filter.ageGroupId, filter.divisionId, weekOffset] }
+    /// Refetch only when the season or week changes; age group and divisions filter on device.
+    private var fetchKey: [Int?] { [filter.seasonId, weekOffset] }
+    private var matchFilter: MatchFilter {
+        MatchFilter(ageGroupId: filter.ageGroupId, divisionIds: divisions.divisionIds)
+    }
 
     var body: some View {
         LoadableView(state: state, retry: load) { matches in
-            let schedule = MatchSchedule.week(myTeamsOnly ? MatchSchedule.involving(follows.teamIds, in: matches) : matches)
+            let selected = matchFilter.apply(to: matches)
+            let schedule = MatchSchedule.week(myTeamsOnly ? MatchSchedule.involving(follows.teamIds, in: selected) : selected)
             if schedule.isEmpty {
                 ContentUnavailableView("No Matches", systemImage: "sportscourt",
-                                       description: Text("Nothing for \(filter.summary) this week."))
+                                       description: Text("Nothing for \(filter.ageGroup?.name ?? "this age group") · \(divisions.summary) this week."))
             } else {
                 ScheduleList(schedule: schedule)
             }
@@ -40,10 +46,10 @@ struct MatchesScreen: View {
                         .toggleStyle(.button)
                 }
             }
-            ToolbarItem(placement: .topBarTrailing) { FilterButton() }
+            ToolbarItem(placement: .topBarTrailing) { MatchesFilterButton() }
         }
         .refreshable { await load() }
-        .task(id: selectionKey) {
+        .task(id: fetchKey) {
             await load()
             // Keep live scores fresh while this screen is visible.
             while !Task.isCancelled {
@@ -58,11 +64,11 @@ struct MatchesScreen: View {
         loadedWeekOffset = weekOffset
         do {
             if !filter.isLoaded { try await filter.load(using: app.client) }
+            if !divisions.isLoaded { try? await divisions.load(using: app.client, leagues: filter.leagues) }
             if !follows.isLoaded { try? await follows.load(using: app.client) }
             let week = self.week
             let matches = try await app.client.matches(MatchQuery(
-                seasonId: filter.seasonId, ageGroupId: filter.ageGroupId, divisionId: filter.divisionId,
-                startDate: week.startDay, endDate: week.endDay))
+                seasonId: filter.seasonId, startDate: week.startDay, endDate: week.endDay))
             // Server bounds are inclusive dates; keep the list strictly inside the week shown.
             state = .loaded(matches.filter { week.contains(day: $0.matchDate) })
         } catch is CancellationError {

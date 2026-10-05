@@ -7,6 +7,7 @@ struct MissingTableApp: App {
     @State private var app = AppModel()
     @State private var filter = LeagueFilter()
     @State private var follows = FollowStore()
+    @State private var matchesFilter = MatchesFilterStore()
     @State private var push = PushManager()
 
     var body: some Scene {
@@ -15,6 +16,7 @@ struct MissingTableApp: App {
                 .environment(app)
                 .environment(filter)
                 .environment(follows)
+                .environment(matchesFilter)
                 .environment(push)
                 .onAppear {
                     delegate.push = push
