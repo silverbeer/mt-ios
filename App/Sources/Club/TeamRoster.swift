@@ -86,7 +86,7 @@ struct TeamRoster: View {
 }
 
 /// Golden Boot (web GoldenBoot.vue): season stats for every player, sortable by
-/// any column, filterable by competition.
+/// any column, filterable by one or more competitions (League + Flex).
 struct TeamStats: View {
     let team: TeamRoute
     @Environment(AppModel.self) private var app
@@ -94,7 +94,8 @@ struct TeamStats: View {
     @State private var state: Loadable<[TeamPlayerStats]> = .idle
     @State private var sortColumn: StatColumn = .goals
     @State private var matchTypes: [MatchType] = []
-    @State private var matchTypeId: Int?
+    /// Empty = all competitions.
+    @State private var matchTypeIds: Set<Int> = []
 
     private static let stat: CGFloat = 26
 
@@ -151,21 +152,33 @@ struct TeamStats: View {
             }
         }
         .refreshable { await load() }
-        .task(id: matchTypeId) { await load() }
+        .task(id: matchTypeIds) { await load() }
     }
 
     private var competitionMenu: some View {
         Menu {
-            Picker("Competition", selection: $matchTypeId) {
-                Text("All competitions").tag(Int?.none)
-                ForEach(matchTypes) { Text($0.name).tag(Optional($0.id)) }
+            Toggle("All competitions", isOn: Binding(
+                get: { matchTypeIds.isEmpty }, set: { if $0 { matchTypeIds = [] } }
+            ))
+            Section {
+                ForEach(matchTypes) { type in
+                    Toggle(type.name, isOn: Binding(
+                        get: { matchTypeIds.contains(type.id) },
+                        set: { on in
+                            if on { matchTypeIds.insert(type.id) } else { matchTypeIds.remove(type.id) }
+                            // Every competition picked is the same board as none.
+                            if matchTypeIds.count == matchTypes.count { matchTypeIds = [] }
+                        }
+                    ))
+                }
             }
         } label: {
-            Label(matchTypes.first { $0.id == matchTypeId }?.name ?? "All competitions",
+            Label(MatchType.selectionLabel(matchTypeIds, of: matchTypes),
                   systemImage: "chevron.up.chevron.down")
                 .labelStyle(.titleAndIcon)
                 .font(.caption.weight(.semibold))
         }
+        .menuActionDismissBehavior(.disabled)
         .textCase(nil)
     }
 
@@ -176,9 +189,16 @@ struct TeamStats: View {
             if matchTypes.isEmpty {
                 matchTypes = ((try? await app.client.matchTypes()) ?? [])
                     .sorted { ($0.displayOrder ?? .max, $0.name) < ($1.displayOrder ?? .max, $1.name) }
+                #if DEBUG
+                // `-MTStatsCompetitions "League,Flex"` preselects competitions (simulator screenshots).
+                if let names = UserDefaults.standard.string(forKey: "MTStatsCompetitions")?.split(separator: ",") {
+                    let picked = Set(matchTypes.filter { names.contains(Substring($0.name)) }.map(\.id))
+                    if !picked.isEmpty { matchTypeIds = picked; return }
+                }
+                #endif
             }
             state = .loaded(try await app.client.teamStats(teamId: team.id, seasonId: filter.seasonId,
-                                                           matchTypeId: matchTypeId))
+                                                           matchTypeIds: matchTypeIds))
         } catch is CancellationError {
         } catch {
             app.handle(error)
