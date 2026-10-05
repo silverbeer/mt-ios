@@ -9,6 +9,8 @@ struct MatchDetailView: View {
     @State private var match: Match
     @State private var live: LiveMatchState?
     @State private var events: [MatchEvent] = []
+    @State private var homeLineup: Lineup?
+    @State private var awayLineup: Lineup?
 
     static let livePoll: Duration = .seconds(15)
 
@@ -35,6 +37,10 @@ struct MatchDetailView: View {
                     }
                 }
                 .padding(.vertical, 8)
+            }
+
+            if homeLineup?.isEmpty == false || awayLineup?.isEmpty == false {
+                LineupSection(match: match, home: homeLineup, away: awayLineup)
             }
 
             if status == .live {
@@ -98,6 +104,12 @@ struct MatchDetailView: View {
             // Events exist for matches scored live; the web fetches them for live and completed.
             if match.status == .live || match.status.isFinal || match.isLiveScored {
                 events = (try? await app.client.events(matchId: match.id)) ?? events
+            }
+            // Lineups can be set before kickoff; fetch once.
+            if homeLineup == nil, awayLineup == nil {
+                async let home = try? app.client.lineup(matchId: match.id, teamId: match.homeTeamId)
+                async let away = try? app.client.lineup(matchId: match.id, teamId: match.awayTeamId)
+                (homeLineup, awayLineup) = (await home ?? nil, await away ?? nil)
             }
         } catch is CancellationError {
         } catch {
