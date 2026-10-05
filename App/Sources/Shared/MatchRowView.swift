@@ -6,13 +6,19 @@ struct MatchRowView: View {
 
     var body: some View {
         HStack(spacing: 12) {
-            VStack(alignment: .leading, spacing: 4) {
-                Text(match.homeTeamName).lineLimit(1)
-                Text(match.awayTeamName).lineLimit(1)
+            VStack(alignment: .leading, spacing: 6) {
+                HStack(spacing: 8) {
+                    ClubLogo(url: match.homeTeamClub?.logoUrl, name: match.homeTeamName, size: 20)
+                    Text(match.homeTeamName).lineLimit(1)
+                }
+                HStack(spacing: 8) {
+                    ClubLogo(url: match.awayTeamClub?.logoUrl, name: match.awayTeamName, size: 20)
+                    Text(match.awayTeamName).lineLimit(1)
+                }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             if match.hasScore {
-                VStack(alignment: .trailing, spacing: 4) {
+                VStack(alignment: .trailing, spacing: 6) {
                     Text("\(match.homeScore ?? 0)")
                     Text("\(match.awayScore ?? 0)")
                 }
