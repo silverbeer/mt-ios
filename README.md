@@ -13,7 +13,7 @@ Login is required (MT is invite-only). Tabs, by role (ported from the web app):
 | Tab | Who | What |
 |---|---|---|
 | **LIVE** | everyone, only while a match is live | live scoreboard + clock, activity stream, chat (Supabase Realtime) |
-| **Table** | everyone | standings (GP W D L PTS) · top scorers |
+| **Table** | everyone | standings (GP W D L PTS) |
 | **Matches** | everyone | week navigation, multi-select divisions (remembered), match view: scorers, cards, timeline, lineups |
 | **My Club** | club roles incl. club fans (parents) | club teams → Matches / Roster / Stats (Golden Boot) → player page |
 | **Profile** | everyone | player card + season stats and editor (players), follows, notifications, switch account |
@@ -70,7 +70,6 @@ opened and screenshotted without tapping:
 | Argument | Opens |
 |---|---|
 | `-MTTab live\|table\|matches\|club\|profile` | that tab |
-| `-MTTableMode "Top Scorers"` | Table tab mode |
 | `-club.selectedId <id> -MTTeam <id> -MTTeamSection roster\|stats` | a team page (My Club tab) |
 | `-MTMatch <id>` | a match, as from a notification |
 | `-MTLiveMatch <id>` | the LIVE view for a match |

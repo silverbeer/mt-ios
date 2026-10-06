@@ -1,8 +1,8 @@
 import Foundation
 
 // Profiles, rosters and player stats (backend app.py /api/auth/me, /api/me/player-stats,
-// /api/teams/{id}/roster, /api/roster/{id}/stats, /api/teams/{id}/stats,
-// /api/leaderboards/goals). Shapes follow the web profile components.
+// /api/teams/{id}/roster, /api/roster/{id}/stats, /api/teams/{id}/stats).
+// Shapes follow the web profile components.
 
 public struct NamedRef: Codable, Sendable, Equatable, Hashable {
     public var id: Int?
@@ -309,26 +309,6 @@ extension TeamPlayerStats {
 
 struct TeamStatsResponse: Decodable, Sendable { var players: [TeamPlayerStats] }
 
-/// One row of /api/leaderboards/goals (Golden Boot).
-public struct LeaderboardEntry: Decodable, Sendable, Equatable, Identifiable {
-    public var playerId: Int
-    public var jerseyNumber: Int?
-    public var firstName: String?
-    public var lastName: String?
-    public var teamId: Int?
-    public var teamName: String?
-    public var goals: Int
-    public var gamesPlayed: Int?
-    public var rank: Int?
-    public var goalsPerGame: Double?
-
-    public var id: Int { playerId }
-    public var name: String {
-        let full = [firstName, lastName].compactMap { $0 }.joined(separator: " ")
-        return full.isEmpty ? jerseyNumber.map { "#\($0)" } ?? "Player" : full
-    }
-}
-
 /// Win/draw/loss record for a team from its completed matches.
 public struct TeamRecord: Sendable, Equatable {
     public var played = 0, wins = 0, draws = 0, losses = 0, goalsFor = 0, goalsAgainst = 0
@@ -399,15 +379,6 @@ extension APIClient {
     }
 
     public func matchTypes() async throws -> [MatchType] { try await get("/api/match-types") }
-
-    public func goalLeaders(seasonId: Int, ageGroupId: Int?, leagueId: Int?, divisionId: Int?,
-                            limit: Int = 50) async throws -> [LeaderboardEntry] {
-        try await get("/api/leaderboards/goals", query: [
-            "season_id": String(seasonId), "age_group_id": ageGroupId.map(String.init),
-            "league_id": leagueId.map(String.init), "division_id": divisionId.map(String.init),
-            "limit": String(limit),
-        ])
-    }
 }
 
 /// A team in a club, from /api/clubs/{id}/teams.
