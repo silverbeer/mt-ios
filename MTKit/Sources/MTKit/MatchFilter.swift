@@ -85,3 +85,39 @@ public struct HomeFilter: Sendable, Equatable {
         self.divisionIds = divisionIds
     }
 }
+
+/// The competition a match counts for, for the row chip (web `competitionChip`, SB-1105).
+public enum Competition: Sendable, Equatable {
+    case league, flex, tournament, friendly
+    case other(String)
+
+    /// Nil when the match doesn't say: no chip rather than a guessed "League". The backend
+    /// fills a missing type with "Unknown", which is the same as not saying.
+    public init?(name: String?) {
+        guard let name = name?.trimmingCharacters(in: .whitespaces), !name.isEmpty,
+              name.lowercased() != "unknown" else { return nil }
+        switch name.lowercased() {
+        case "league": self = .league
+        case "flex": self = .flex
+        case "tournament": self = .tournament
+        case "friendly": self = .friendly
+        default: self = .other(name)
+        }
+    }
+
+    /// "LEAGUE", "FLEX", … as on the web chip.
+    public var label: String {
+        switch self {
+        case .league: "LEAGUE"
+        case .flex: "FLEX"
+        case .tournament: "TOURNAMENT"
+        case .friendly: "FRIENDLY"
+        case .other(let name): name.uppercased()
+        }
+    }
+}
+
+extension Match {
+    public var competition: Competition? { Competition(name: matchTypeName) }
+}
+
