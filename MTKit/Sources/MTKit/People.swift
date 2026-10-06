@@ -280,6 +280,33 @@ public struct TeamPlayerStats: Decodable, Sendable, Equatable, Identifiable {
     }
 }
 
+extension TeamPlayerStats {
+    /// Per-competition boards summed per player (League + Flex). A match belongs to one
+    /// competition, so every count adds exactly. Keeps first-seen order.
+    public static func merged(_ boards: [[TeamPlayerStats]]) -> [TeamPlayerStats] {
+        var order: [Int] = []
+        var byPlayer: [Int: TeamPlayerStats] = [:]
+        for row in boards.joined() {
+            guard var total = byPlayer[row.playerId] else {
+                order.append(row.playerId)
+                byPlayer[row.playerId] = row
+                continue
+            }
+            func add(_ a: Int?, _ b: Int?) -> Int? { a == nil && b == nil ? nil : (a ?? 0) + (b ?? 0) }
+            total.jerseyNumber = total.jerseyNumber ?? row.jerseyNumber
+            total.gamesPlayed = add(total.gamesPlayed, row.gamesPlayed)
+            total.gamesStarted = add(total.gamesStarted, row.gamesStarted)
+            total.totalMinutes = add(total.totalMinutes, row.totalMinutes)
+            total.totalGoals = add(total.totalGoals, row.totalGoals)
+            total.totalAssists = add(total.totalAssists, row.totalAssists)
+            total.totalYellowCards = add(total.totalYellowCards, row.totalYellowCards)
+            total.totalRedCards = add(total.totalRedCards, row.totalRedCards)
+            byPlayer[row.playerId] = total
+        }
+        return order.compactMap { byPlayer[$0] }
+    }
+}
+
 struct TeamStatsResponse: Decodable, Sendable { var players: [TeamPlayerStats] }
 
 /// One row of /api/leaderboards/goals (Golden Boot).
@@ -345,9 +372,28 @@ extension APIClient {
         return response.roster
     }
 
-    public func teamStats(teamId: Int, seasonId: Int?, matchTypeId: Int? = nil) async throws -> [TeamPlayerStats] {
+    /// Stats across several competitions: one request per competition (a handful), summed per player.
+    /// Empty means all competitions (one unfiltered request). `ageGroupId` keeps only that age
+    /// group's players, matching the roster.
+    public func teamStats(teamId: Int, seasonId: Int?, matchTypeIds: Set<Int>,
+                          ageGroupId: Int? = nil) async throws -> [TeamPlayerStats] {
+        if matchTypeIds.count <= 1 {
+            return try await teamStats(teamId: teamId, seasonId: seasonId, matchTypeId: matchTypeIds.first,
+                                       ageGroupId: ageGroupId)
+        }
+        var boards: [[TeamPlayerStats]] = []
+        for id in matchTypeIds.sorted() {
+            boards.append(try await teamStats(teamId: teamId, seasonId: seasonId, matchTypeId: id,
+                                              ageGroupId: ageGroupId))
+        }
+        return TeamPlayerStats.merged(boards)
+    }
+
+    public func teamStats(teamId: Int, seasonId: Int?, matchTypeId: Int? = nil,
+                          ageGroupId: Int? = nil) async throws -> [TeamPlayerStats] {
         let response: TeamStatsResponse = try await get("/api/teams/\(teamId)/stats", query: [
             "season_id": seasonId.map(String.init), "match_type_id": matchTypeId.map(String.init),
+            "age_group_id": ageGroupId.map(String.init),
         ])
         return response.players
     }
@@ -451,6 +497,19 @@ public struct MatchType: Decodable, Sendable, Equatable, Identifiable, Hashable 
     public var id: Int
     public var name: String
     public var displayOrder: Int?
+}
+
+extension MatchType {
+    /// Menu label for a competition selection: "All competitions", "League",
+    /// "League + Flex", then "3 competitions". Names follow `types` order.
+    public static func selectionLabel(_ selected: Set<Int>, of types: [MatchType]) -> String {
+        let names = types.filter { selected.contains($0.id) }.map(\.name)
+        switch names.count {
+        case 0: return "All competitions"
+        case 1, 2: return names.joined(separator: " + ")
+        default: return "\(names.count) competitions"
+        }
+    }
 }
 
 /// Sortable Golden Boot columns (web GoldenBoot.vue statColumns).

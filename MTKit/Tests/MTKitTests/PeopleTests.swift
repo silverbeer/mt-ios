@@ -144,6 +144,77 @@ import Testing
     }
 }
 
+/// Request log shared with the stub handler.
+private final class Recorded: @unchecked Sendable {
+    private let lock = NSLock()
+    private var log: [String] = []
+    var values: [String] { lock.withLock { log } }
+    func append(_ value: String) { lock.withLock { log.append(value) } }
+}
+
+@Suite struct CompetitionStatsTests {
+    private func row(_ id: Int, goals: Int?, gp: Int, jersey: Int? = nil) -> TeamPlayerStats {
+        TeamPlayerStats(playerId: id, jerseyNumber: jersey, firstName: "P\(id)", lastName: nil, gamesPlayed: gp,
+                        gamesStarted: 1, totalMinutes: 80, totalGoals: goals, totalAssists: 1,
+                        totalYellowCards: nil, totalRedCards: 0)
+    }
+
+    @Test func mergeSumsEachPlayerAcrossCompetitions() {
+        let league = [row(1, goals: 3, gp: 4), row(2, goals: nil, gp: 2)]
+        let flex = [row(3, goals: 1, gp: 1), row(1, goals: 2, gp: 3, jersey: 9)]
+        let merged = TeamPlayerStats.merged([league, flex])
+        #expect(merged.map(\.playerId) == [1, 2, 3])
+        let one = merged[0]
+        #expect(one.totalGoals == 5)
+        #expect(one.gamesPlayed == 7)
+        #expect(one.gamesStarted == 2)
+        #expect(one.totalMinutes == 160)
+        #expect(one.totalAssists == 2)
+        #expect(one.totalYellowCards == nil)
+        #expect(one.totalRedCards == 0)
+        #expect(one.jerseyNumber == 9)
+        #expect(merged[1].totalGoals == nil)
+        #expect(merged[2].totalGoals == 1)
+    }
+
+    @Test func requestsOneBoardPerSelectedCompetitionAndSumsThem() async throws {
+        let seen = Recorded()
+        let client = StubURLProtocol.client(tokens: InMemoryTokenStore(AuthTokens(accessToken: "t", refreshToken: "r"))) { request in
+            let type = URLComponents(url: request.url!, resolvingAgainstBaseURL: false)?
+                .queryItems?.first { $0.name == "match_type_id" }?.value ?? "all"
+            seen.append(type)
+            return (200, json(#"{"players": [{"player_id": 7, "total_goals": 2, "games_played": 1}]}"#))
+        }
+        let rows = try await client.teamStats(teamId: 1, seasonId: 3, matchTypeIds: [4, 2])
+        #expect(seen.values == ["2", "4"])
+        #expect(rows.first?.totalGoals == 4)
+
+        _ = try await client.teamStats(teamId: 1, seasonId: 3, matchTypeIds: [])
+        #expect(seen.values.last == "all")
+    }
+
+    @Test func everyCompetitionRequestCarriesTheAgeGroup() async throws {
+        let seen = Recorded()
+        let client = StubURLProtocol.client(tokens: InMemoryTokenStore(AuthTokens(accessToken: "t", refreshToken: "r"))) { request in
+            seen.append(URLComponents(url: request.url!, resolvingAgainstBaseURL: false)?
+                .queryItems?.first { $0.name == "age_group_id" }?.value ?? "none")
+            return (200, json(#"{"players": []}"#))
+        }
+        _ = try await client.teamStats(teamId: 1, seasonId: 3, matchTypeIds: [1, 2], ageGroupId: 15)
+        _ = try await client.teamStats(teamId: 1, seasonId: 3, matchTypeIds: [], ageGroupId: 15)
+        _ = try await client.teamStats(teamId: 1, seasonId: 3, matchTypeIds: [])
+        #expect(seen.values == ["15", "15", "15", "none"])
+    }
+
+    @Test func selectionLabel() {
+        let types = [MatchType(id: 1, name: "League"), MatchType(id: 2, name: "Flex"), MatchType(id: 3, name: "Cup")]
+        #expect(MatchType.selectionLabel([], of: types) == "All competitions")
+        #expect(MatchType.selectionLabel([2], of: types) == "Flex")
+        #expect(MatchType.selectionLabel([2, 1], of: types) == "League + Flex")
+        #expect(MatchType.selectionLabel([1, 2, 3], of: types) == "3 competitions")
+    }
+}
+
 @Suite struct StatColumnTests {
     private func row(_ id: Int, _ name: String, goals: Int, assists: Int, gp: Int) -> TeamPlayerStats {
         TeamPlayerStats(playerId: id, jerseyNumber: id, firstName: name, lastName: nil, gamesPlayed: gp,
