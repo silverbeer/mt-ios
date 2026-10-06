@@ -104,3 +104,33 @@ import MTKit
         #expect(Color(hex: "nope") == nil)
     }
 }
+
+@MainActor @Suite struct HomeFilterOnceTests {
+    private func defaults() -> UserDefaults { UserDefaults(suiteName: "test.\(UUID().uuidString)")! }
+
+    private func profile(_ json: String) throws -> MyProfile {
+        let decoder = JSONDecoder()
+        decoder.keyDecodingStrategy = .convertFromSnakeCase
+        return try decoder.decode(MyProfile.self, from: Data(json.utf8))
+    }
+
+    @Test func homeIsAppliedOncePerAccountAndRemembered() async throws {
+        let store = defaults()
+        let matches = MatchesFilterStore(defaults: store)
+        let app = AppModel(defaults: store, makeTokens: { _ in InMemoryTokenStore() })
+        let teamless = try profile(#"{"id": "u-1"}"#)
+        #expect(matches.needsHome(for: teamless))
+        #expect(!matches.needsHome(for: nil))
+
+        // No team: nothing to apply, but the account is marked so it isn't retried.
+        matches.divisionIds = [99]
+        try await matches.applyHome(for: teamless, filter: LeagueFilter(defaults: store), using: app.client)
+        #expect(matches.divisionIds == [99])
+        #expect(!matches.needsHome(for: teamless))
+        #expect(!MatchesFilterStore(defaults: store).needsHome(for: teamless))
+
+        // A different account on the same device starts on its own team again.
+        #expect(matches.needsHome(for: try profile(#"{"id": "u-2"}"#)))
+    }
+}
+
