@@ -4,7 +4,8 @@ import MTKit
 
 /// Matches-tab division selection: any number of divisions across leagues, empty = all.
 /// Saved so the same selection is applied the next time the app opens. Season and
-/// age group come from the shared LeagueFilter.
+/// age group come from the shared LeagueFilter. A player starts on their own team
+/// (age group, Homegrown division + Flex bracket), once per account.
 @MainActor @Observable
 final class MatchesFilterStore {
     private(set) var groups: [MatchFilter.LeagueGroup] = []
@@ -14,12 +15,35 @@ final class MatchesFilterStore {
         didSet { defaults.set(Array(divisionIds).sorted(), forKey: Self.key) }
     }
 
+    /// Account the home filter was last applied for; later choices are the user's own.
+    private(set) var homeAppliedFor: String? {
+        didSet { defaults.set(homeAppliedFor, forKey: Self.homeKey) }
+    }
+
     private let defaults: UserDefaults
     static let key = "matches.divisionIds"
+    static let homeKey = "matches.homeAppliedFor"
 
     init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
         divisionIds = Set(defaults.array(forKey: Self.key) as? [Int] ?? [])
+        homeAppliedFor = defaults.string(forKey: Self.homeKey)
+    }
+
+    func needsHome(for profile: MyProfile?) -> Bool {
+        guard let id = profile?.id else { return false }
+        return homeAppliedFor != id
+    }
+
+    /// Put Matches and Table on the user's team. Users without a team keep their selection.
+    func applyHome(for profile: MyProfile, filter: LeagueFilter, using client: APIClient) async throws {
+        defer { homeAppliedFor = profile.id }
+        guard let team = profile.primaryTeam, let teamId = team.teamId ?? team.team?.id else { return }
+        let schedule = (try? await client.matches(MatchQuery(
+            seasonId: filter.seasonId, ageGroupId: team.ageGroup?.id, teamId: teamId))) ?? []
+        guard let home = MatchFilter.home(for: team, schedule: schedule) else { return }
+        try await filter.apply(home, using: client)
+        divisionIds = home.divisionIds
     }
 
     func load(using client: APIClient, leagues: [League]) async throws {

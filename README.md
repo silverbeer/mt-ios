@@ -74,6 +74,7 @@ opened and screenshotted without tapping:
 | `-MTMatch <id>` | a match, as from a notification |
 | `-MTLiveMatch <id>` | the LIVE view for a match |
 | `-MTStatsCompetitions "League,Flex"` | Stats tab with those competitions selected (with `-MTTeamSection stats`) |
+| `-MTMatchesFilter YES` | the Matches filter sheet (with `-MTTab matches`) |
 | `-MTEditProfile 1` | the profile editor |
 
 ## CI

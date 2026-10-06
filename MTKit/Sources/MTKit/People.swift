@@ -134,6 +134,13 @@ public struct MyProfile: Codable, Sendable, Equatable {
         currentTeams?.first { ($0.teamId ?? $0.team?.id) == teamId }?.ageGroup
     }
 
+    /// The current-team entry for the primary team, else the first (web SB-599 personalizes
+    /// its age group / league / division defaults from it).
+    public var primaryTeam: CurrentTeam? {
+        let primary = teamId ?? team?.id
+        return currentTeams?.first { primary != nil && ($0.teamId ?? $0.team?.id) == primary } ?? currentTeams?.first
+    }
+
     /// The user's own teams: the primary team first, then the rest of `current_teams`.
     public var ownTeamIds: [Int] {
         var ids: [Int] = []
