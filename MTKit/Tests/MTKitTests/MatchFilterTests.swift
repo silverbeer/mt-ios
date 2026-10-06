@@ -32,3 +32,26 @@ private func match(_ id: Int, age: Int?, division: Int?) -> Match {
         #expect(groups[1].divisions.map(\.name) == ["Empire", "New England"])
     }
 }
+
+@Suite struct CompetitionTests {
+    @Test func namesMapToKindsCaseInsensitively() {
+        #expect(Competition(name: "League") == .league)
+        #expect(Competition(name: "flex") == .flex)
+        #expect(Competition(name: "Tournament") == .tournament)
+        #expect(Competition(name: "Friendly") == .friendly)
+        #expect(Competition(name: "Cup") == .other("Cup"))
+        #expect(Competition(name: "Cup")?.label == "CUP")
+        #expect(Competition.flex.label == "FLEX")
+    }
+
+    @Test func unknownCompetitionGetsNoChip() {
+        #expect(Competition(name: nil) == nil)
+        #expect(Competition(name: "") == nil)
+        #expect(Competition(name: " ") == nil)
+        #expect(Competition(name: "Unknown") == nil)
+        let match = Match(id: 1, matchDate: "2026-10-05", homeTeamId: 1, awayTeamId: 2, homeTeamName: "H",
+                          awayTeamName: "A", matchTypeName: "Flex")
+        #expect(match.competition == .flex)
+    }
+}
+
