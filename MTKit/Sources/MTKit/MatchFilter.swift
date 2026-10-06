@@ -43,6 +43,47 @@ public struct MatchFilter: Sendable, Equatable {
         if !other.isEmpty { groups.append(LeagueGroup(id: "other", title: "Other", divisions: other)) }
         return groups
     }
+
+    /// Competitions played inside a division (backend DIVISION_SCOPED_MATCH_TYPES). Flex
+    /// matches sit in a Flex-league bracket, separate from the team's Homegrown division.
+    public static let divisionScopedCompetitions: Set<String> = ["League", "Flex"]
+
+    /// Where a player's filters start: their team's age group and league, and the divisions
+    /// their team plays League and Flex matches in (the profile only names the Homegrown
+    /// division; the Flex bracket comes from the schedule). Nil without a team id.
+    public static func home(for team: CurrentTeam, schedule: [Match]) -> HomeFilter? {
+        guard let teamId = team.teamId ?? team.team?.id else { return nil }
+        let ageGroupId = team.ageGroup?.id
+        var divisionIds = Set([team.division?.id ?? team.team?.division?.id].compactMap { $0 })
+        for match in schedule where match.homeTeamId == teamId || match.awayTeamId == teamId {
+            guard ageGroupId == nil || match.ageGroupId == ageGroupId,
+                  let type = match.matchTypeName, divisionScopedCompetitions.contains(type),
+                  let division = match.divisionId else { continue }
+            divisionIds.insert(division)
+        }
+        return HomeFilter(teamId: teamId, ageGroupId: ageGroupId,
+                          leagueId: team.league?.id ?? team.team?.league?.id,
+                          divisionId: team.division?.id ?? team.team?.division?.id, divisionIds: divisionIds)
+    }
+}
+
+/// A player's starting filters (see `MatchFilter.home`).
+public struct HomeFilter: Sendable, Equatable {
+    public var teamId: Int
+    public var ageGroupId: Int?
+    /// The team's own league and division, for the Table tab's single selection.
+    public var leagueId: Int?
+    public var divisionId: Int?
+    /// Every division the team plays League or Flex in, for the Matches tab.
+    public var divisionIds: Set<Int>
+
+    public init(teamId: Int, ageGroupId: Int?, leagueId: Int?, divisionId: Int?, divisionIds: Set<Int>) {
+        self.teamId = teamId
+        self.ageGroupId = ageGroupId
+        self.leagueId = leagueId
+        self.divisionId = divisionId
+        self.divisionIds = divisionIds
+    }
 }
 
 /// The competition a match counts for, for the row chip (web `competitionChip`, SB-1105).

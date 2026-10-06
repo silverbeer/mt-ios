@@ -5,6 +5,7 @@ import MTKit
 struct MatchesFilterSheet: View {
     @Environment(LeagueFilter.self) private var filter
     @Environment(MatchesFilterStore.self) private var store
+    @Environment(AppModel.self) private var app
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
@@ -17,6 +18,15 @@ struct MatchesFilterSheet: View {
                     }
                     Picker("Age Group", selection: $filter.ageGroupId) {
                         ForEach(filter.ageGroups) { Text($0.name).tag(Optional($0.id)) }
+                    }
+                }
+                if let profile = app.profile, profile.primaryTeam != nil {
+                    Section {
+                        Button("Reset to My Team", systemImage: "person.crop.circle.badge.checkmark") {
+                            Task { try? await store.applyHome(for: profile, filter: filter, using: app.client) }
+                        }
+                    } footer: {
+                        Text(profile.primaryTeam?.subtitle ?? "")
                     }
                 }
                 Section {
@@ -85,5 +95,9 @@ struct MatchesFilterButton: View {
                   systemImage: "line.3.horizontal.decrease.circle")
         }
         .sheet(isPresented: $showing) { MatchesFilterSheet() }
+        #if DEBUG
+        // `-MTMatchesFilter YES` opens the filter sheet on launch (simulator screenshots).
+        .onAppear { if UserDefaults.standard.bool(forKey: "MTMatchesFilter") { showing = true } }
+        #endif
     }
 }
