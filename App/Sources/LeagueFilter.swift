@@ -53,6 +53,13 @@ final class LeagueFilter {
         isLoaded = true
     }
 
+    /// Put the Table selection on the user's team.
+    func apply(_ home: HomeFilter, using client: APIClient) async throws {
+        if let id = home.ageGroupId, ageGroups.contains(where: { $0.id == id }) { ageGroupId = id }
+        if let id = home.leagueId, leagues.contains(where: { $0.id == id }) { try await selectLeague(id, using: client) }
+        if let id = home.divisionId, divisions.contains(where: { $0.id == id }) { divisionId = id }
+    }
+
     func selectLeague(_ id: Int?, using client: APIClient) async throws {
         leagueId = id
         try await loadDivisions(using: client)

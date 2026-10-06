@@ -23,6 +23,8 @@ struct RootView: View {
 struct MainTabs: View {
     @Environment(AppModel.self) private var app
     @Environment(PushManager.self) private var push
+    @Environment(LeagueFilter.self) private var filter
+    @Environment(MatchesFilterStore.self) private var matchesFilter
     @SceneStorage("tab") private var tab: AppTab = .table
     /// Matches being scored right now; the LIVE tab exists only while there are some (web App.vue).
     @State private var liveMatches: [LiveMatchSummary] = []
@@ -51,6 +53,7 @@ struct MainTabs: View {
                 NavigationStack { ProfileScreen().withRoutes() }
             }
         }
+        .task(id: app.profile?.id) { await startOnOwnTeam() }
         .sheet(isPresented: Binding(
             get: { push.pendingMatchId != nil },
             set: { if !$0 { push.pendingMatchId = nil } }
@@ -92,5 +95,18 @@ extension View {
         navigationDestination(for: TeamRoute.self) { TeamView(team: $0) }
             .navigationDestination(for: Match.self) { MatchDetailView(match: $0) }
             .navigationDestination(for: PlayerRoute.self) { PlayerView(player: $0) }
+    }
+}
+
+extension MainTabs {
+    /// First sign-in on this device: Table and Matches open on the user's team (age group,
+    /// division, Flex bracket). Later choices are left alone.
+    func startOnOwnTeam() async {
+        guard let profile = app.profile, matchesFilter.needsHome(for: profile) else { return }
+        do {
+            if !filter.isLoaded { try await filter.load(using: app.client) }
+            if !matchesFilter.isLoaded { try await matchesFilter.load(using: app.client, leagues: filter.leagues) }
+            try await matchesFilter.applyHome(for: profile, filter: filter, using: app.client)
+        } catch {}
     }
 }
