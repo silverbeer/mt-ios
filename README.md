@@ -26,7 +26,8 @@ Login is required (MT is invite-only). Tabs, by role (ported from the web app):
 | `App/` | SwiftUI app target (`io.silverbeer.mt`). |
 | `AppTests/` | App unit tests (run on simulator). |
 | `MTKit/` | Swift package: models + API client. No UIKit/SwiftUI — testable with `swift test`. |
-| `scripts/` | `test.sh`, `run-sim.sh`, `sim-destination.sh`. |
+| `scripts/` | `test.sh`, `run-sim.sh`, `sim-destination.sh`, `make-icon.swift` (app icon, see `design/icon/`). |
+| `design/icon/` | App icon source: SVG layers for Icon Composer, font, how to regenerate. |
 
 ## Toolchain
 
