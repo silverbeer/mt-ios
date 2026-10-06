@@ -134,3 +134,11 @@ import MTKit
     }
 }
 
+
+/// SB-1280: the built app declares its icon (an empty AppIcon set ships no CFBundleIcons entry).
+@Test func appDeclaresItsIcon() {
+    let icons = Bundle.main.object(forInfoDictionaryKey: "CFBundleIcons") as? [String: Any]
+    let primary = icons?["CFBundlePrimaryIcon"] as? [String: Any]
+    let name = primary?["CFBundleIconName"] as? String
+    #expect(name == "AppIcon")
+}
