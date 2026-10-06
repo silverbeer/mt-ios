@@ -198,7 +198,7 @@ struct TeamStats: View {
                 #endif
             }
             state = .loaded(try await app.client.teamStats(teamId: team.id, seasonId: filter.seasonId,
-                                                           matchTypeIds: matchTypeIds))
+                                                           matchTypeIds: matchTypeIds, ageGroupId: team.ageGroup?.id))
         } catch is CancellationError {
         } catch {
             app.handle(error)

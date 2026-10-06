@@ -366,21 +366,27 @@ extension APIClient {
     }
 
     /// Stats across several competitions: one request per competition (a handful), summed per player.
-    /// Empty means all competitions (one unfiltered request).
-    public func teamStats(teamId: Int, seasonId: Int?, matchTypeIds: Set<Int>) async throws -> [TeamPlayerStats] {
+    /// Empty means all competitions (one unfiltered request). `ageGroupId` keeps only that age
+    /// group's players, matching the roster.
+    public func teamStats(teamId: Int, seasonId: Int?, matchTypeIds: Set<Int>,
+                          ageGroupId: Int? = nil) async throws -> [TeamPlayerStats] {
         if matchTypeIds.count <= 1 {
-            return try await teamStats(teamId: teamId, seasonId: seasonId, matchTypeId: matchTypeIds.first)
+            return try await teamStats(teamId: teamId, seasonId: seasonId, matchTypeId: matchTypeIds.first,
+                                       ageGroupId: ageGroupId)
         }
         var boards: [[TeamPlayerStats]] = []
         for id in matchTypeIds.sorted() {
-            boards.append(try await teamStats(teamId: teamId, seasonId: seasonId, matchTypeId: id))
+            boards.append(try await teamStats(teamId: teamId, seasonId: seasonId, matchTypeId: id,
+                                              ageGroupId: ageGroupId))
         }
         return TeamPlayerStats.merged(boards)
     }
 
-    public func teamStats(teamId: Int, seasonId: Int?, matchTypeId: Int? = nil) async throws -> [TeamPlayerStats] {
+    public func teamStats(teamId: Int, seasonId: Int?, matchTypeId: Int? = nil,
+                          ageGroupId: Int? = nil) async throws -> [TeamPlayerStats] {
         let response: TeamStatsResponse = try await get("/api/teams/\(teamId)/stats", query: [
             "season_id": seasonId.map(String.init), "match_type_id": matchTypeId.map(String.init),
+            "age_group_id": ageGroupId.map(String.init),
         ])
         return response.players
     }
