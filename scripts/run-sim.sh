@@ -12,4 +12,4 @@ xcrun simctl boot "$udid" 2>/dev/null || true
 # Show the simulator window if this Xcode ships a Simulator app; the device runs either way.
 open -a Simulator 2>/dev/null || echo "note: Simulator app not found; device is booted headless (udid $udid)"
 xcrun simctl install "$udid" build/Build/Products/Debug-iphonesimulator/MissingTable.app
-xcrun simctl launch --terminate-running-process "$udid" io.silverbeer.mt "$@"
+xcrun simctl launch --terminate-running-process "$udid" com.missingtable "$@"

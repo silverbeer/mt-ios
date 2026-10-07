@@ -12,7 +12,7 @@ public enum SessionCheck: Sendable, Equatable {
 }
 
 extension APIClient {
-    static let log = Logger(subsystem: "io.silverbeer.mt", category: "auth")
+    static let log = Logger(subsystem: "com.missingtable", category: "auth")
 
     /// Launch check: one `/api/auth/me` (refreshing the token if needed) for both the user
     /// and the profile, bounded by `limit` in total. Logs how long it took and how it ended — never tokens.
