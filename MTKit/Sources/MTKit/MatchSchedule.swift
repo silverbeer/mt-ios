@@ -13,6 +13,11 @@ public struct MatchSchedule: Sendable, Equatable {
     public var live: [Match]
     public var results: [Day]
     public var fixtures: [Day]
+    /// Every non-live match as one season in date order, played and upcoming together.
+    public var timeline: [Day] = []
+    /// The latest day with a played match: where a season view opens, so the last
+    /// result sits at the top with the next fixtures below. Nil when nothing is played yet.
+    public var anchorDay: String?
 
     public init(_ matches: [Match]) {
         live = matches.filter { $0.status == .live }.sorted(by: Self.kickoffAscending)
@@ -22,6 +27,8 @@ public struct MatchSchedule: Sendable, Equatable {
         let upcoming = rest.filter { !playedIds.contains($0.id) }
         results = Self.days(played, newestFirst: true)
         fixtures = Self.days(upcoming, newestFirst: false)
+        timeline = Self.days(rest, newestFirst: false)
+        anchorDay = results.first?.date
     }
 
     /// Single-week view, as on the web: live first, then every day in date order
@@ -30,6 +37,7 @@ public struct MatchSchedule: Sendable, Equatable {
         var schedule = MatchSchedule([])
         schedule.live = matches.filter { $0.status == .live }.sorted(by: kickoffAscending)
         schedule.fixtures = days(matches.filter { $0.status != .live }, newestFirst: false)
+        schedule.timeline = schedule.fixtures
         return schedule
     }
 

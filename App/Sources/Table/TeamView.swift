@@ -118,24 +118,37 @@ private struct TeamMatches: View {
 struct ScheduleList: View {
     let schedule: MatchSchedule
 
+    /// Scroll to the latest result once per load, not on every refresh redraw.
+    @State private var scrolledTo: String?
+
     var body: some View {
-        List {
-            if !schedule.live.isEmpty {
-                Section("Live") {
-                    ForEach(schedule.live) { MatchLink(match: $0) }
+        ScrollViewReader { proxy in
+            List {
+                if !schedule.live.isEmpty {
+                    Section("Live") {
+                        ForEach(schedule.live) { MatchLink(match: $0) }
+                    }
+                }
+                ForEach(schedule.timeline) { day in
+                    Section {
+                        ForEach(day.matches) { MatchLink(match: $0) }
+                    } header: {
+                        // The scroll target is the date heading, so it lands in view too.
+                        Text(dayTitle(day.date)).id(day.date)
+                    }
                 }
             }
-            ForEach(schedule.fixtures) { day in
-                Section(dayTitle(day.date)) {
-                    ForEach(day.matches) { MatchLink(match: $0) }
-                }
-            }
-            ForEach(schedule.results) { day in
-                Section(dayTitle(day.date)) {
-                    ForEach(day.matches) { MatchLink(match: $0) }
-                }
-            }
+            .onAppear { scrollToLatestResult(proxy) }
+            .onChange(of: schedule.anchorDay) { scrollToLatestResult(proxy) }
         }
+    }
+
+    /// Season view: open on the latest result, upcoming below it, older results a scroll up.
+    private func scrollToLatestResult(_ proxy: ScrollViewProxy) {
+        guard schedule.live.isEmpty, let anchor = schedule.anchorDay, anchor != scrolledTo else { return }
+        scrolledTo = anchor
+        // A little below the top edge: flush .top tucks the date under the section picker.
+        proxy.scrollTo(anchor, anchor: UnitPoint(x: 0.5, y: 0.08))
     }
 }
 
