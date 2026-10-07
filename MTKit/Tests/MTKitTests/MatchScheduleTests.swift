@@ -10,6 +10,26 @@ private func match(_ id: Int, _ date: String, _ status: String, score: (Int, Int
 }
 
 @Suite struct MatchScheduleTests {
+    @Test func timelineRunsInDateOrderAndOpensAtTheLatestResult() {
+        let schedule = MatchSchedule([
+            match(1, "2026-10-17", "scheduled"),
+            match(2, "2026-09-12", "completed", score: (1, 0)),
+            match(3, "2026-09-26", "completed", score: (2, 2)),
+            match(4, "2026-09-26", "scheduled"),          // same day as a result: one day, both rows
+            match(5, "2026-10-04", "live", score: (0, 0)),
+        ])
+        #expect(schedule.timeline.map(\.date) == ["2026-09-12", "2026-09-26", "2026-10-17"])
+        #expect(schedule.timeline[1].matches.map(\.id).sorted() == [3, 4])
+        #expect(schedule.anchorDay == "2026-09-26")
+        #expect(schedule.live.map(\.id) == [5])
+    }
+
+    @Test func nothingPlayedOpensAtTheTop() {
+        let schedule = MatchSchedule([match(1, "2026-10-17", "scheduled"), match(2, "2026-10-24", "scheduled")])
+        #expect(schedule.anchorDay == nil)
+        #expect(schedule.timeline.map(\.date) == ["2026-10-17", "2026-10-24"])
+    }
+
     @Test func splitsLiveResultsAndFixtures() {
         let schedule = MatchSchedule([
             match(1, "2026-09-27", "completed", score: (2, 1)),
