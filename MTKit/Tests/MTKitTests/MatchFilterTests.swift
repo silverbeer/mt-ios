@@ -94,3 +94,20 @@ private func match(_ id: Int, age: Int?, division: Int?) -> Match {
         #expect(noPrimary.primaryTeam?.teamId == 3)
     }
 }
+
+@Suite struct MatchScopeTests {
+    @Test func tableSelectionNarrowsTheTeamsMatches() throws {
+        let scope = try #require(MatchScope.make(ageGroup: NamedRef(id: 3, name: "U15"),
+                                                 division: NamedRef(id: 1, name: "Northeast")))
+        #expect(scope.label == "U15 · Northeast")
+        #expect(scope.query(seasonId: 184, teamId: 7)
+                == MatchQuery(seasonId: 184, ageGroupId: 3, divisionId: 1, teamId: 7))
+    }
+
+    @Test func emptySelectionIsNoScope() {
+        #expect(MatchScope.make(ageGroup: nil, division: nil) == nil)
+        #expect(MatchScope.make(ageGroup: NamedRef(id: nil, name: "U15"), division: NamedRef()) == nil)
+        #expect(MatchScope.make(ageGroup: NamedRef(id: 3, name: "U15"), division: nil)?.label == "U15")
+    }
+}
+
