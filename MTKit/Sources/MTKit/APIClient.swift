@@ -164,7 +164,20 @@ public actor APIClient {
         return try await task.value
     }
 
+    /// Logs duration and outcome (never the tokens), so a slow launch shows whether refresh stalled.
     private func refresh(using refreshToken: String) async throws -> AuthTokens {
+        let start = ContinuousClock.now
+        do {
+            let next = try await requestRefresh(using: refreshToken)
+            Self.log.info("token refresh: ok in \(ContinuousClock.now - start, privacy: .public)")
+            return next
+        } catch {
+            Self.log.error("token refresh: \(String(describing: error), privacy: .public) after \(ContinuousClock.now - start, privacy: .public)")
+            throw error
+        }
+    }
+
+    private func requestRefresh(using refreshToken: String) async throws -> AuthTokens {
         let body = try JSONEncoder.mt.encode(RefreshRequest(refreshToken: refreshToken))
         let (data, response) = try await perform(makeRequest("POST", "/api/auth/refresh", body: body))
         if response.statusCode == 401 {

@@ -5,6 +5,9 @@ import Foundation
 final class StubURLProtocol: URLProtocol, @unchecked Sendable {
     typealias Handler = @Sendable (URLRequest) throws -> (Int, Data)
 
+    /// Throw from a handler to leave the request unanswered until it is cancelled.
+    struct NoAnswer: Error {}
+
     private static let lock = NSLock()
     nonisolated(unsafe) private static var handlers: [String: Handler] = [:]
 
@@ -39,6 +42,8 @@ final class StubURLProtocol: URLProtocol, @unchecked Sendable {
             client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
             client?.urlProtocol(self, didLoad: data)
             client?.urlProtocolDidFinishLoading(self)
+        } catch is NoAnswer {
+            // Stall: URLSession calls stopLoading when the task is cancelled.
         } catch {
             client?.urlProtocol(self, didFailWithError: error)
         }

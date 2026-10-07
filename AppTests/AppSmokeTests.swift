@@ -28,6 +28,35 @@ import MTKit
         #expect(app.user == nil)
     }
 
+    /// SB-1285: a server that never answers ends in Retry / Sign Out, not an endless spinner.
+    @Test func silentServerOffersRetryAndKeepsSession() async {
+        let tokens = InMemoryTokenStore(AuthTokens(accessToken: "a", refreshToken: "r"))
+        let app = AppModel(defaults: defaults(), makeTokens: { _ in tokens },
+                           session: StubProtocol.session(.silent), launchLimit: .milliseconds(200))
+
+        await app.bootstrap()
+
+        guard case .unreachable = app.phase else {
+            Issue.record("expected unreachable, got \(app.phase)")
+            return
+        }
+        #expect(tokens.load() != nil)
+        app.retryLaunch()
+        #expect(app.phase == .launching)
+        await app.logout()
+        #expect(app.phase == .signedOut)
+        #expect(tokens.load() == nil)
+    }
+
+    @Test func rejectedRefreshOnLaunchSignsOut() async {
+        let tokens = InMemoryTokenStore(AuthTokens(accessToken: "a", refreshToken: "r"))
+        let app = AppModel(defaults: defaults(), makeTokens: { _ in tokens },
+                           session: StubProtocol.session(.rejecting))
+        await app.bootstrap()
+        #expect(app.phase == .signedOut)
+        #expect(tokens.load() == nil)
+    }
+
     @Test func environmentChoiceIsRemembered() async {
         let store = defaults()
         let app = AppModel(defaults: store, makeTokens: { _ in InMemoryTokenStore() })
@@ -141,4 +170,31 @@ import MTKit
     let primary = icons?["CFBundlePrimaryIcon"] as? [String: Any]
     let name = primary?["CFBundleIconName"] as? String
     #expect(name == "AppIcon")
+}
+
+/// Network stand-ins for AppModel tests: `.silent` never answers, `.rejecting` answers 401
+/// to everything (including the token refresh).
+final class StubProtocol: URLProtocol, @unchecked Sendable {
+    enum Mode: String { case silent, rejecting }
+
+    static func session(_ mode: Mode) -> URLSession {
+        let config = URLSessionConfiguration.ephemeral
+        config.protocolClasses = [StubProtocol.self]
+        config.httpAdditionalHeaders = ["X-Stub": mode.rawValue]
+        return URLSession(configuration: config)
+    }
+
+    override class func canInit(with request: URLRequest) -> Bool { true }
+    override class func canonicalRequest(for request: URLRequest) -> URLRequest { request }
+
+    override func startLoading() {
+        guard request.value(forHTTPHeaderField: "X-Stub") == Mode.rejecting.rawValue else { return }
+        let response = HTTPURLResponse(url: request.url!, statusCode: 401, httpVersion: "HTTP/1.1",
+                                       headerFields: ["Content-Type": "application/json"])!
+        client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
+        client?.urlProtocol(self, didLoad: Data(#"{"detail": "rejected"}"#.utf8))
+        client?.urlProtocolDidFinishLoading(self)
+    }
+
+    override func stopLoading() {}
 }
