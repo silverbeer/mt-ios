@@ -23,7 +23,7 @@ Login is required (MT is invite-only). Tabs, by role (ported from the web app):
 | Path | What |
 |---|---|
 | `project.yml` | XcodeGen spec. The `.xcodeproj` is generated, never committed. |
-| `App/` | SwiftUI app target (`io.silverbeer.mt`). |
+| `App/` | SwiftUI app target (`com.missingtable`). |
 | `AppTests/` | App unit tests (run on simulator). |
 | `MTKit/` | Swift package: models + API client. No UIKit/SwiftUI — testable with `swift test`. |
 | `scripts/` | `test.sh`, `run-sim.sh`, `sim-destination.sh`, `make-icon.swift` (app icon, see `design/icon/`). |
@@ -59,7 +59,7 @@ workflow run number.
 One-time setup (needs the Apple Developer account):
 1. App Store Connect → Users and Access → Integrations → App Store Connect API → new key with **App Manager** role.
 2. Store it in 1Password `agents` vault, item `mt-ios-asc`, fields `key_id`, `issuer_id`, `team_id`, `private_key` (the `.p8` contents).
-3. Create the app record in App Store Connect with bundle id `io.silverbeer.mt`.
+3. Create the app record in App Store Connect with bundle id `com.missingtable`.
 4. `scripts/set-release-secrets.sh`
 5. `gh workflow run TestFlight`, then add testers in App Store Connect → TestFlight → Internal Testing.
 ## Debug launch arguments
@@ -96,5 +96,5 @@ Permission is requested after the first follow. Debug builds register as `sandbo
 Simulate a push in the Simulator (tapping it opens match 1):
 
 ```bash
-xcrun simctl push booted io.silverbeer.mt push/goal.apns
+xcrun simctl push booted com.missingtable push/goal.apns
 ```

@@ -34,7 +34,7 @@ extension APIEnvironment {
 /// and keep a slow poll as a fallback. The stream reconnects after drops until the
 /// consumer stops iterating.
 public enum MatchRealtime {
-    static let log = Logger(subsystem: "io.silverbeer.mt", category: "realtime")
+    static let log = Logger(subsystem: "com.missingtable", category: "realtime")
 
     public static func changes(matchId: Int, config: RealtimeConfig,
                                session: URLSession = .shared) -> AsyncStream<Void> {

@@ -1,5 +1,5 @@
 {
-  "Simulator Target Bundle": "io.silverbeer.mt",
+  "Simulator Target Bundle": "com.missingtable",
   "aps": {
     "alert": {
       "title": "⚽ GOAL — Blues 1–0 Reds",
