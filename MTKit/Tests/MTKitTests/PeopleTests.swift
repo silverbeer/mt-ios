@@ -71,13 +71,6 @@ import Testing
         #expect(goals == [3, 5])
         #expect(record.winPercentage == 33)
     }
-
-    @Test func leaderboardDecodes() throws {
-        let data = json(#"[{"player_id": 3, "jersey_number": 10, "first_name": "Ana", "last_name": "B", "team_id": 7, "team_name": "Blues", "goals": 8, "games_played": 5, "rank": 1, "goals_per_game": 1.6}]"#)
-        let rows = try JSONDecoder.mt.decode([LeaderboardEntry].self, from: data)
-        #expect(rows.first?.name == "Ana B")
-        #expect(rows.first?.goalsPerGame == 1.6)
-    }
 }
 
 @Suite struct ClubTeamTests {

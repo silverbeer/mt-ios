@@ -5,39 +5,15 @@ struct TableScreen: View {
     @Environment(AppModel.self) private var app
     @Environment(LeagueFilter.self) private var filter
     @State private var state: Loadable<[StandingRow]> = .idle
-    @SceneStorage("table.mode") private var mode: Mode = .standings
-
-    enum Mode: String, CaseIterable {
-        case standings = "Standings", scorers = "Top Scorers"
-    }
 
     /// Reload whenever any part of the selection changes.
     private var selectionKey: [Int?] { [filter.seasonId, filter.ageGroupId, filter.divisionId] }
 
     var body: some View {
-        Group {
-            switch mode {
-            case .standings: standings
-            case .scorers: TopScorers()
-            }
-        }
-        .safeAreaInset(edge: .top, spacing: 0) {
-            Picker("View", selection: $mode) {
-                ForEach(Mode.allCases, id: \.self) { Text($0.rawValue).tag($0) }
-            }
-            .pickerStyle(.segmented)
-            .padding(.horizontal)
-            .padding(.vertical, 8)
-            .background(.bar)
-        }
+        standings
         .navigationTitle(filter.ageGroup?.name ?? "Table")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar { ToolbarItem(placement: .topBarTrailing) { FilterButton() } }
-        #if DEBUG
-        .onAppear {
-            if let raw = UserDefaults.standard.string(forKey: "MTTableMode"), let start = Mode(rawValue: raw) { mode = start }
-        }
-        #endif
     }
 
     private var standings: some View {
