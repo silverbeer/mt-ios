@@ -11,6 +11,16 @@ struct TableScreen: View {
         case standings = "Standings", scorers = "Top Scorers"
     }
 
+    #if DEBUG
+    @State private var debugTeam: TeamRoute?
+    #endif
+
+    /// The selection, carried onto a team's matches when a row is opened.
+    private var scope: MatchScope? {
+        MatchScope.make(ageGroup: filter.ageGroup.map { NamedRef(id: $0.id, name: $0.name) },
+                        division: filter.division.map { NamedRef(id: $0.id, name: $0.name) })
+    }
+
     /// Reload whenever any part of the selection changes.
     private var selectionKey: [Int?] { [filter.seasonId, filter.ageGroupId, filter.divisionId] }
 
@@ -46,11 +56,20 @@ struct TableScreen: View {
                 ContentUnavailableView("No Standings", systemImage: "list.number",
                                        description: Text("No league results for \(filter.summary) yet."))
             } else {
-                StandingsList(rows: rows, title: filter.division?.name)
+                StandingsList(rows: rows, title: filter.division?.name, scope: scope)
             }
         }
         .refreshable { await load() }
         .task(id: selectionKey) { await load() }
+        #if DEBUG
+        // `-MTTableTeam "IFA"` opens that row's team as a tap would (simulator screenshots).
+        .navigationDestination(item: $debugTeam) { TeamView(team: $0) }
+        .onChange(of: state.value) { _, rows in
+            guard debugTeam == nil, let name = UserDefaults.standard.string(forKey: "MTTableTeam"),
+                  let row = rows?.first(where: { $0.team == name }), let id = row.teamId else { return }
+            debugTeam = TeamRoute(id: id, name: row.team, matchScope: scope)
+        }
+        #endif
     }
 
     private func load() async {
@@ -70,6 +89,8 @@ struct TableScreen: View {
 private struct StandingsList: View {
     let rows: [StandingRow]
     let title: String?
+    /// The Table's age group and division, carried onto each team's matches.
+    let scope: MatchScope?
 
     var body: some View {
         List {
@@ -80,7 +101,7 @@ private struct StandingsList: View {
                     StandingRowView(position: index + 1, row: row)
                         .background {
                             if let teamId = row.teamId {
-                                NavigationLink(value: TeamRoute(id: teamId, name: row.team)) { EmptyView() }
+                                NavigationLink(value: TeamRoute(id: teamId, name: row.team, matchScope: scope)) { EmptyView() }
                                     .opacity(0)
                             }
                         }

@@ -7,6 +7,8 @@ struct TeamRoute: Hashable {
     /// Set when opened from one age group of a squad that spans several: matches and
     /// roster are narrowed to it.
     var ageGroup: NamedRef? = nil
+    /// Set when opened from the Table: matches start on its age group and division.
+    var matchScope: MatchScope? = nil
 
     /// "IFA U15" when narrowed to an age group.
     var title: String { [name, ageGroup?.name].compactMap { $0 }.joined(separator: " ") }
@@ -86,25 +88,46 @@ private struct TeamMatches: View {
     @Environment(AppModel.self) private var app
     @Environment(LeagueFilter.self) private var filter
     @State private var state: Loadable<MatchSchedule> = .idle
+    /// "Show all" drops the Table's scope for this visit.
+    @State private var showAll = false
+
+    private var scope: MatchScope? { showAll ? nil : team.matchScope }
 
     var body: some View {
         LoadableView(state: state, retry: load) { schedule in
             if schedule.isEmpty {
                 ContentUnavailableView("No Matches", systemImage: "sportscourt",
-                                       description: Text("Nothing scheduled this season."))
+                                       description: Text(scope.map { "Nothing for \($0.label) this season." }
+                                                         ?? "Nothing scheduled this season."))
             } else {
                 ScheduleList(schedule: schedule)
             }
         }
+        .safeAreaInset(edge: .top, spacing: 0) {
+            if let scope = team.matchScope {
+                HStack {
+                    Label(showAll ? "All matches" : scope.label, systemImage: "line.3.horizontal.decrease")
+                        .font(.subheadline.weight(.semibold))
+                    Spacer()
+                    Button(showAll ? "Only \(scope.label)" : "Show all") { showAll.toggle() }
+                        .font(.subheadline)
+                }
+                .padding(.horizontal)
+                .padding(.vertical, 6)
+                .background(.bar)
+            }
+        }
         .refreshable { await load() }
-        .task { await load() }
+        .task(id: showAll) { await load() }
     }
 
     private func load() async {
         if state.value == nil { state = .loading }
         do {
             if !filter.isLoaded { try await filter.load(using: app.client) }
-            let matches = try await app.client.matches(MatchQuery(seasonId: filter.seasonId, ageGroupId: team.ageGroup?.id, teamId: team.id))
+            let query = scope?.query(seasonId: filter.seasonId, teamId: team.id)
+                ?? MatchQuery(seasonId: filter.seasonId, ageGroupId: team.ageGroup?.id, teamId: team.id)
+            let matches = try await app.client.matches(query)
             state = .loaded(MatchSchedule(matches))
         } catch is CancellationError {
         } catch {

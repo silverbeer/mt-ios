@@ -74,6 +74,7 @@ opened and screenshotted without tapping:
 | `-club.selectedId <id> -MTTeam <id> -MTTeamSection roster\|stats` | a team page (My Club tab) |
 | `-MTMatch <id>` | a match, as from a notification |
 | `-MTLiveMatch <id>` | the LIVE view for a match |
+| `-MTTableTeam "IFA"` | that team from the Table, as a tap would (keeps the Table's filter) |
 | `-MTStatsCompetitions "League,Flex"` | Stats tab with those competitions selected (with `-MTTeamSection stats`) |
 | `-MTMatchesFilter YES` | the Matches filter sheet (with `-MTTab matches`) |
 | `-MTEditProfile 1` | the profile editor |

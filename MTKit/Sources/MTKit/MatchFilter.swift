@@ -121,3 +121,29 @@ extension Match {
     public var competition: Competition? { Competition(name: matchTypeName) }
 }
 
+/// The Table's selection carried onto a team's matches (U15 · Northeast): the team page
+/// shows the same slice of its schedule that the standings were built from.
+public struct MatchScope: Sendable, Hashable {
+    public var ageGroup: NamedRef?
+    public var division: NamedRef?
+
+    public init(ageGroup: NamedRef? = nil, division: NamedRef? = nil) {
+        self.ageGroup = ageGroup
+        self.division = division
+    }
+
+    /// Nil when there is nothing to narrow by.
+    public static func make(ageGroup: NamedRef?, division: NamedRef?) -> MatchScope? {
+        let scope = MatchScope(ageGroup: ageGroup?.id == nil ? nil : ageGroup,
+                               division: division?.id == nil ? nil : division)
+        return scope.ageGroup == nil && scope.division == nil ? nil : scope
+    }
+
+    /// "U15 · Northeast".
+    public var label: String { [ageGroup?.name, division?.name].compactMap { $0 }.joined(separator: " · ") }
+
+    public func query(seasonId: Int?, teamId: Int) -> MatchQuery {
+        MatchQuery(seasonId: seasonId, ageGroupId: ageGroup?.id, divisionId: division?.id, teamId: teamId)
+    }
+}
+
