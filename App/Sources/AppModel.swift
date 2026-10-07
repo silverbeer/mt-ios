@@ -7,6 +7,9 @@ import MTKit
 final class AppModel {
     enum Phase: Equatable {
         case launching
+        /// The saved session couldn't be checked (no answer in time, or server trouble).
+        /// It is kept; the user picks Retry or Sign Out.
+        case unreachable(String)
         case signedOut
         case signedIn(User)
     }
@@ -18,16 +21,23 @@ final class AppModel {
     private(set) var environment: APIEnvironment
     private let defaults: UserDefaults
     private let makeTokens: @Sendable (APIEnvironment) -> TokenStore
+    private let session: URLSession
+    /// How long launch waits on the session check before offering Retry / Sign Out.
+    private let launchLimit: Duration
 
     init(defaults: UserDefaults = .standard,
          makeTokens: @escaping @Sendable (APIEnvironment) -> TokenStore = {
              KeychainTokenStore(service: "io.silverbeer.mt.auth.\($0.rawValue)")
-         }) {
+         },
+         session: URLSession = .shared,
+         launchLimit: Duration = .seconds(12)) {
         let environment = defaults.string(forKey: Keys.environment).flatMap { APIEnvironment(rawValue: $0) } ?? .production
         self.defaults = defaults
         self.makeTokens = makeTokens
+        self.session = session
+        self.launchLimit = launchLimit
         self.environment = environment
-        self.client = APIClient(baseURL: environment.baseURL, tokens: makeTokens(environment))
+        self.client = APIClient(baseURL: environment.baseURL, session: session, tokens: makeTokens(environment))
     }
 
     var role: Role { profile?.kind ?? Role(raw: user?.role) }
@@ -37,22 +47,24 @@ final class AppModel {
         return nil
     }
 
-    /// Restore a saved session on launch.
+    /// Restore a saved session on launch, giving up after `launchLimit`.
     func bootstrap() async {
-        guard await client.isSignedIn else {
+        switch await client.checkSession(within: launchLimit) {
+        case .signedOut:
             phase = .signedOut
-            return
-        }
-        do {
-            let user = try await client.me()
-            profile = try? await client.profile()
+        case .signedIn(let user, let profile):
+            self.profile = profile
             phase = .signedIn(user)
-        } catch APIError.unauthorized {
-            phase = .signedOut
-        } catch {
-            // Offline or server trouble: keep the session, show a placeholder user.
-            phase = .signedIn(User(id: "", displayName: "Offline"))
+        case .unreachable(.transport):
+            phase = .unreachable("No answer from the server. Check your connection and try again.")
+        case .unreachable(let error):
+            phase = .unreachable(error.displayMessage)
         }
+    }
+
+    /// From the unreachable screen: back to the launch spinner, which runs `bootstrap` again.
+    func retryLaunch() {
+        phase = .launching
     }
 
     func login(username: String, password: String) async throws {
@@ -81,7 +93,7 @@ final class AppModel {
         await client.logout()
         self.environment = environment
         defaults.set(environment.rawValue, forKey: Keys.environment)
-        client = APIClient(baseURL: environment.baseURL, tokens: makeTokens(environment))
+        client = APIClient(baseURL: environment.baseURL, session: session, tokens: makeTokens(environment))
         phase = .signedOut
     }
 

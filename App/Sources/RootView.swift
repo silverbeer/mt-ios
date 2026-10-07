@@ -12,10 +12,30 @@ struct RootView: View {
         switch app.phase {
         case .launching:
             ProgressView().task { await app.bootstrap() }
+        case .unreachable(let message):
+            LaunchFailedView(message: message)
         case .signedOut:
             LoginView()
         case .signedIn:
             MainTabs()
+        }
+    }
+}
+
+/// Launch couldn't check the saved session. Without this the app sat on a spinner (SB-1285).
+struct LaunchFailedView: View {
+    @Environment(AppModel.self) private var app
+    let message: String
+
+    var body: some View {
+        ContentUnavailableView {
+            Label("Can't reach Missing Table", systemImage: "wifi.exclamationmark")
+        } description: {
+            Text(message)
+        } actions: {
+            Button("Retry") { app.retryLaunch() }
+                .buttonStyle(.borderedProminent)
+            Button("Sign Out", role: .destructive) { Task { await app.logout() } }
         }
     }
 }
