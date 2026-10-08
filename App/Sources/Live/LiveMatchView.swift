@@ -14,6 +14,7 @@ struct LiveMatchView: View {
     @State private var sending = false
     @State private var sendError: String?
     @State private var failed: String?
+    @State private var showingLineups = false
 
     static let fallbackPoll: Duration = .seconds(15)
     static let maxLength = 500
@@ -25,10 +26,18 @@ struct LiveMatchView: View {
             if let match {
                 List {
                     Section {
-                        Scoreboard(match: match, status: live?.matchStatus ?? match.status,
-                                   homeScore: live?.homeScore ?? match.homeScore,
-                                   awayScore: live?.awayScore ?? match.awayScore, live: live)
-                            .padding(.vertical, 8)
+                        let timeline = MatchTimeline(events: events, homeTeamId: match.homeTeamId,
+                                                     awayTeamId: match.awayTeamId)
+                        VStack(spacing: 16) {
+                            Scoreboard(match: match, status: live?.matchStatus ?? match.status,
+                                       homeScore: live?.homeScore ?? match.homeScore,
+                                       awayScore: live?.awayScore ?? match.awayScore, live: live)
+                            if timeline.hasGoalsOrCards {
+                                Divider()
+                                TeamEventColumns(timeline: timeline)
+                            }
+                        }
+                        .padding(.vertical, 8)
                     }
                     Section("Live") {
                         if events.isEmpty {
@@ -59,6 +68,19 @@ struct LiveMatchView: View {
         }
         .navigationTitle(match.map { "\($0.homeTeamName) v \($0.awayTeamName)" } ?? "Live")
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            if match != nil {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button { showingLineups = true } label: {
+                        Image(systemName: "person.3")
+                    }
+                    .accessibilityLabel("Lineups")
+                }
+            }
+        }
+        .sheet(isPresented: $showingLineups) {
+            if let match { LiveLineupsSheet(match: match) }
+        }
         .refreshable { await refresh() }
         .task(id: matchId) { await refresh() }
         .task(id: matchId) { await followRealtime() }
@@ -173,6 +195,41 @@ private struct ChatRow: View {
                     in: RoundedRectangle(cornerRadius: 12))
         .listRowSeparator(.hidden)
         .accessibilityElement(children: .combine)
+    }
+}
+
+/// Both lineups over the live view, fetched each time it opens so a lineup
+/// set or changed after kickoff shows up.
+private struct LiveLineupsSheet: View {
+    let match: Match
+    @Environment(AppModel.self) private var app
+    @Environment(\.dismiss) private var dismiss
+    @State private var home: Lineup?
+    @State private var away: Lineup?
+    @State private var loaded = false
+
+    var body: some View {
+        NavigationStack {
+            Group {
+                if loaded {
+                    List { LineupSection(match: match, home: home, away: away) }
+                } else {
+                    ProgressView()
+                }
+            }
+            .navigationTitle("Lineups")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } }
+            }
+            .task {
+                async let h = try? app.client.lineup(matchId: match.id, teamId: match.homeTeamId)
+                async let a = try? app.client.lineup(matchId: match.id, teamId: match.awayTeamId)
+                (home, away) = (await h ?? nil, await a ?? nil)
+                loaded = true
+            }
+        }
+        .presentationDetents([.medium, .large])
     }
 }
 

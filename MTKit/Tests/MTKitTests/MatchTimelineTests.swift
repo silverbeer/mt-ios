@@ -33,6 +33,18 @@ private func at(_ s: String) -> Date { MTDate.timestamp(s)! }
         #expect(timeline.awayCards.map(\.id) == [3])
     }
 
+    @Test func hasGoalsOrCardsIgnoresChatAndStatus() {
+        let chatter = MatchTimeline(events: [event(1, "message"), event(2, "status_change"),
+                                             event(3, "substitution", team: 1, minute: 10)],
+                                    homeTeamId: 1, awayTeamId: 2)
+        #expect(!chatter.hasGoalsOrCards)
+        #expect(MatchTimeline(events: [event(4, "yellow_card", team: 2, minute: 5)],
+                              homeTeamId: 1, awayTeamId: 2).hasGoalsOrCards)
+        // A goal for a team not in this match doesn't count.
+        #expect(!MatchTimeline(events: [event(5, "goal", team: 9, minute: 5)],
+                               homeTeamId: 1, awayTeamId: 2).hasGoalsOrCards)
+    }
+
     @Test func timelineIsOldestFirstByCreation() {
         let timeline = MatchTimeline(events: [
             event(2, "goal", team: 1, minute: 5, created: "2026-10-04T14:05:00Z"),

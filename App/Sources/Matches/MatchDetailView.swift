@@ -30,8 +30,7 @@ struct MatchDetailView: View {
             Section {
                 VStack(spacing: 16) {
                     Scoreboard(match: match, status: status, homeScore: homeScore, awayScore: awayScore, live: live)
-                    if !timeline.homeGoals.isEmpty || !timeline.awayGoals.isEmpty
-                        || !timeline.homeCards.isEmpty || !timeline.awayCards.isEmpty {
+                    if timeline.hasGoalsOrCards {
                         Divider()
                         TeamEventColumns(timeline: timeline)
                     }
