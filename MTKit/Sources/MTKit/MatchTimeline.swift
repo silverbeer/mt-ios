@@ -51,6 +51,11 @@ public struct MatchTimeline: Sendable, Equatable {
     }
 
     public var isEmpty: Bool { all.isEmpty }
+
+    /// Anything to list under the scoreboard: a goal or card for either team.
+    public var hasGoalsOrCards: Bool {
+        !(homeGoals.isEmpty && awayGoals.isEmpty && homeCards.isEmpty && awayCards.isEmpty)
+    }
 }
 
 /// Live match clock derived from the match's phase timestamps. Same rules as the
