@@ -57,7 +57,7 @@ dispatch or a `v*` tag. Signing is automatic via an App Store Connect API key; t
 workflow run number.
 
 One-time setup (needs the Apple Developer account):
-1. App Store Connect → Users and Access → Integrations → App Store Connect API → new key with **App Manager** role.
+1. App Store Connect → Users and Access → Integrations → App Store Connect API → new key with **Admin** role (cloud-managed distribution signing fails with App Manager).
 2. Store it in 1Password `agents` vault, item `mt-ios-asc`, fields `key_id`, `issuer_id`, `team_id`, `private_key` (the `.p8` contents).
 3. Create the app record in App Store Connect with bundle id `com.missingtable`.
 4. `scripts/set-release-secrets.sh`
