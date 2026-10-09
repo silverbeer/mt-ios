@@ -83,7 +83,6 @@ public struct StandingRow: Codable, Sendable, Equatable, Identifiable {
     public var team: String
     public var teamId: Int?
     public var clubId: Int?
-    public var logoUrl: String?
     public var played: Int
     public var wins: Int
     public var draws: Int
@@ -97,14 +96,13 @@ public struct StandingRow: Codable, Sendable, Equatable, Identifiable {
 
     public var id: String { teamId.map(String.init) ?? team }
 
-    public init(team: String, teamId: Int? = nil, clubId: Int? = nil, logoUrl: String? = nil,
+    public init(team: String, teamId: Int? = nil, clubId: Int? = nil,
                 played: Int = 0, wins: Int = 0, draws: Int = 0, losses: Int = 0,
                 goalsFor: Int = 0, goalsAgainst: Int = 0, goalDifference: Int = 0, points: Int = 0,
                 form: [String]? = nil, positionChange: Int? = nil) {
         self.team = team
         self.teamId = teamId
         self.clubId = clubId
-        self.logoUrl = logoUrl
         self.played = played
         self.wins = wins
         self.draws = draws
@@ -126,7 +124,6 @@ extension StandingRow {
         self.init(team: try c.decodeIfPresent(String.self, forKey: .team) ?? "",
                   teamId: try c.decodeIfPresent(Int.self, forKey: .teamId),
                   clubId: try c.decodeIfPresent(Int.self, forKey: .clubId),
-                  logoUrl: try c.decodeIfPresent(String.self, forKey: .logoUrl),
                   played: try count(.played), wins: try count(.wins), draws: try count(.draws),
                   losses: try count(.losses), goalsFor: try count(.goalsFor),
                   goalsAgainst: try count(.goalsAgainst), goalDifference: try count(.goalDifference),
@@ -143,7 +140,6 @@ struct TableResponse: Decodable, Sendable {
 public struct TeamClub: Codable, Sendable, Equatable, Hashable {
     public var id: Int?
     public var name: String?
-    public var logoUrl: String?
     public var primaryColor: String?
     public var secondaryColor: String?
 }

@@ -103,7 +103,7 @@ private struct ProfileHeader: View {
             }
             Spacer(minLength: 0)
             if let club = profile.displayClub {
-                ClubLogo(url: club.logoUrl, name: club.name ?? "", size: 40)
+                ClubBadge(name: club.name ?? "", size: 40)
             }
         }
         .foregroundStyle(foreground)
@@ -195,7 +195,7 @@ private struct FanSections: View {
         if let club = profile.displayClub, let name = club.name {
             Section("My Club") {
                 HStack(spacing: 12) {
-                    ClubLogo(url: club.logoUrl, name: name, size: 32)
+                    ClubBadge(name: name, size: 32)
                     Text(name).font(.headline)
                 }
             }
@@ -211,7 +211,7 @@ private struct ManagerSections: View {
         if let club = profile.displayClub, let name = club.name {
             Section(profile.kind == .admin ? "Club" : "My Club") {
                 HStack(spacing: 12) {
-                    ClubLogo(url: club.logoUrl, name: name, size: 32)
+                    ClubBadge(name: name, size: 32)
                     Text(name).font(.headline)
                 }
             }
@@ -232,7 +232,7 @@ private struct TeamsSection: View {
                     if let id = team.teamId {
                         NavigationLink(value: TeamRoute(id: id, name: team.name)) {
                             HStack(spacing: 12) {
-                                ClubLogo(url: team.team?.club?.logoUrl, name: team.name, size: 28)
+                                ClubBadge(name: team.name, size: 28)
                                 VStack(alignment: .leading) {
                                     Text(team.name)
                                     if !team.subtitle.isEmpty {
