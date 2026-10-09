@@ -128,7 +128,7 @@ struct StandingRowView: View {
                 .frame(width: Columns.position, alignment: .leading)
                 .foregroundStyle(.secondary)
             HStack(spacing: 8) {
-                ClubLogo(url: row.logoUrl, name: row.team)
+                ClubBadge(name: row.team)
                 Text(row.team)
                     .lineLimit(1)
                     .truncationMode(.tail)

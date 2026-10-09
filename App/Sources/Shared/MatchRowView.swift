@@ -8,11 +8,11 @@ struct MatchRowView: View {
         HStack(spacing: 12) {
             VStack(alignment: .leading, spacing: 6) {
                 HStack(spacing: 8) {
-                    ClubLogo(url: match.homeTeamClub?.logoUrl, name: match.homeTeamName, size: 20)
+                    ClubBadge(name: match.homeTeamName, size: 20)
                     Text(match.homeTeamName).lineLimit(1)
                 }
                 HStack(spacing: 8) {
-                    ClubLogo(url: match.awayTeamClub?.logoUrl, name: match.awayTeamName, size: 20)
+                    ClubBadge(name: match.awayTeamName, size: 20)
                     Text(match.awayTeamName).lineLimit(1)
                 }
             }

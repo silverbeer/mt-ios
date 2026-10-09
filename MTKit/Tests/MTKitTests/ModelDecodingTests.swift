@@ -32,7 +32,25 @@ import Testing
         #expect(match.id == 42)
         #expect(!match.hasScore)
         #expect(match.status == .unknown("abandoned"))
-        #expect(match.homeTeamClub?.logoUrl == "https://x/y.png")
+        #expect(match.homeTeamClub?.name == "Club A")
+    }
+
+    /// The backend still sends `logo_url`; the app decodes past it and keeps no logo
+    /// field anywhere, so nothing in the app can load a club crest.
+    @Test func clubModelsDecodeButDropLogoURL() throws {
+        let club = ##"{"id": 3, "name": "Blues FC", "logo_url": "https://l/x.png", "primary_color": "#0000ff"}"##
+        let row = try JSONDecoder.mt.decode(StandingRow.self, from: json(#"{"team": "Blues", "logo_url": "https://l/x.png"}"#))
+        let models: [Any] = [
+            row,
+            try JSONDecoder.mt.decode(TeamClub.self, from: json(club)),
+            try JSONDecoder.mt.decode(ClubRef.self, from: json(club)),
+            try JSONDecoder.mt.decode(Club.self, from: json(club)),
+        ]
+        #expect(row.team == "Blues")
+        for model in models {
+            let fields = Mirror(reflecting: model).children.compactMap(\.label)
+            #expect(!fields.contains { $0.localizedCaseInsensitiveContains("logo") }, "\(type(of: model)): \(fields)")
+        }
     }
 
     @Test func matchStatusFinality() {

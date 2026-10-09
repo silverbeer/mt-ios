@@ -73,7 +73,7 @@ struct ClubScreen: View {
                 pickedClubId = club.id
             } label: {
                 HStack(spacing: 12) {
-                    ClubLogo(url: club.logoUrl, name: club.name, size: 28)
+                    ClubBadge(name: club.name, size: 28)
                     Text(club.name).foregroundStyle(.primary)
                 }
             }

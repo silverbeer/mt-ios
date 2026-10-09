@@ -129,7 +129,7 @@ struct Scoreboard: View {
     var body: some View {
         VStack(spacing: 10) {
             HStack(alignment: .top, spacing: 8) {
-                TeamBadge(name: match.homeTeamName, logo: match.homeTeamClub?.logoUrl)
+                TeamBadge(name: match.homeTeamName)
                 VStack(spacing: 6) {
                     if let homeScore, let awayScore {
                         Text("\(homeScore) – \(awayScore)")
@@ -144,7 +144,7 @@ struct Scoreboard: View {
                     StatusLine(status: status, live: live)
                 }
                 .frame(minWidth: 110)
-                TeamBadge(name: match.awayTeamName, logo: match.awayTeamClub?.logoUrl)
+                TeamBadge(name: match.awayTeamName)
             }
         }
         .animation(.default, value: homeScore)
@@ -154,11 +154,10 @@ struct Scoreboard: View {
 
 private struct TeamBadge: View {
     let name: String
-    let logo: String?
 
     var body: some View {
         VStack(spacing: 8) {
-            ClubLogo(url: logo, name: name, size: 56)
+            ClubBadge(name: name, size: 56)
             Text(name)
                 .font(.subheadline.weight(.semibold))
                 .multilineTextAlignment(.center)

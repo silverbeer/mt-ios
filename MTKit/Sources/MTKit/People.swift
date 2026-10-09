@@ -17,7 +17,6 @@ public struct NamedRef: Codable, Sendable, Equatable, Hashable {
 public struct ClubRef: Codable, Sendable, Equatable, Hashable {
     public var id: Int?
     public var name: String?
-    public var logoUrl: String?
     public var primaryColor: String?
     public var secondaryColor: String?
 }
@@ -423,7 +422,6 @@ public struct ClubTeam: Decodable, Sendable, Equatable, Identifiable, Hashable {
 public struct Club: Decodable, Sendable, Equatable, Identifiable, Hashable {
     public var id: Int
     public var name: String
-    public var logoUrl: String?
     public var primaryColor: String?
 }
 
