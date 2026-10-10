@@ -34,43 +34,7 @@ struct LiveMatchView: View {
     var body: some View {
         Group {
             if let match {
-                List {
-                    Section {
-                        let timeline = MatchTimeline(events: events, homeTeamId: match.homeTeamId,
-                                                     awayTeamId: match.awayTeamId)
-                        VStack(spacing: 16) {
-                            Scoreboard(match: match, status: live?.matchStatus ?? match.status,
-                                       homeScore: live?.homeScore ?? match.homeScore,
-                                       awayScore: live?.awayScore ?? match.awayScore, live: live)
-                            if timeline.hasGoalsOrCards {
-                                Divider()
-                                TeamEventColumns(timeline: timeline)
-                            }
-                        }
-                        .padding(.vertical, 8)
-                    }
-                    Section("Live") {
-                        if app.visible(events).isEmpty {
-                            Text("No activity yet. Say hi 👋").foregroundStyle(.secondary)
-                        }
-                        ForEach(app.visible(events)) { event in
-                            Group {
-                                if event.kind == .message {
-                                    ChatRow(event: event, isMine: isMine(event))
-                                        .contextMenu { chatActions(for: event) }
-                                } else {
-                                    TimelineRow(event: event, match: match)
-                                }
-                            }
-                            .swipeActions {
-                                if canModerate || (event.kind == .message && isMine(event)) {
-                                    Button("Delete", role: .destructive) { Task { await delete(event) } }
-                                }
-                            }
-                        }
-                    }
-                }
-                .safeAreaInset(edge: .bottom) { composer }
+                content(match)
             } else if let failed {
                 ContentUnavailableView("Couldn't load", systemImage: "exclamationmark.triangle", description: Text(failed))
             } else {
@@ -92,10 +56,92 @@ struct LiveMatchView: View {
         .sheet(isPresented: $showingLineups) {
             if let match { LiveLineupsSheet(match: match) }
         }
+        .modifier(moderationDialogs)
+        .refreshable { await refresh() }
+        .task(id: matchId) { await refresh() }
+        .task(id: matchId) { await followRealtime() }
+        .task(id: matchId) { await pollFallback() }
+    }
+
+    // Split out of `body`: Xcode 26's type checker times out on the whole chain.
+    private func content(_ match: Match) -> some View {
+        let visible = app.visible(events)
+        return List {
+            Section {
+                scoreSummary(match)
+            }
+            Section("Live") {
+                if visible.isEmpty {
+                    Text("No activity yet. Say hi 👋").foregroundStyle(.secondary)
+                }
+                ForEach(visible) { event in
+                    row(event, match: match)
+                }
+            }
+        }
+        .safeAreaInset(edge: .bottom) { composer }
+    }
+
+    private func scoreSummary(_ match: Match) -> some View {
+        let timeline = MatchTimeline(events: events, homeTeamId: match.homeTeamId,
+                                     awayTeamId: match.awayTeamId)
+        return VStack(spacing: 16) {
+            Scoreboard(match: match, status: live?.matchStatus ?? match.status,
+                       homeScore: live?.homeScore ?? match.homeScore,
+                       awayScore: live?.awayScore ?? match.awayScore, live: live)
+            if timeline.hasGoalsOrCards {
+                Divider()
+                TeamEventColumns(timeline: timeline)
+            }
+        }
+        .padding(.vertical, 8)
+    }
+
+    @ViewBuilder
+    private func eventView(_ event: MatchEvent, match: Match) -> some View {
+        if event.kind == .message {
+            ChatRow(event: event, isMine: isMine(event))
+                .contextMenu { chatActions(for: event) }
+        } else {
+            TimelineRow(event: event, match: match)
+        }
+    }
+
+    private func row(_ event: MatchEvent, match: Match) -> some View {
+        let deletable = canModerate || (event.kind == .message && isMine(event))
+        return eventView(event, match: match)
+            .swipeActions {
+                if deletable {
+                    Button("Delete", role: .destructive) { Task { await delete(event) } }
+                }
+            }
+    }
+
+    private var moderationDialogs: ModerationDialogs {
+        ModerationDialogs(reporting: $reporting, blocking: $blocking, showingReported: $showingReported,
+                          report: { event, reason in await report(event, reason: reason) },
+                          block: { event in await block(event) })
+    }
+}
+
+/// Report / block confirmation dialogs and the "Report Sent" alert.
+private struct ModerationDialogs: ViewModifier {
+    @Binding var reporting: MatchEvent?
+    @Binding var blocking: MatchEvent?
+    @Binding var showingReported: Bool
+    let report: (MatchEvent, ReportReason) async -> Void
+    let block: (MatchEvent) async -> Void
+
+    private func presence(_ binding: Binding<MatchEvent?>) -> Binding<Bool> {
+        Binding(get: { binding.wrappedValue != nil }, set: { if !$0 { binding.wrappedValue = nil } })
+    }
+
+    func body(content: Content) -> some View {
+        content
         .confirmationDialog("Report Message", isPresented: presence($reporting), titleVisibility: .visible,
                             presenting: reporting) { event in
             ForEach(ReportReason.allCases) { reason in
-                Button(reason.title) { Task { await report(event, reason: reason) } }
+                Button(reason.title) { Task { await report(event, reason) } }
             }
             Button("Cancel", role: .cancel) {}
         } message: { _ in
@@ -113,11 +159,10 @@ struct LiveMatchView: View {
         } message: {
             Text("Thanks — we review reports within 24 hours. You won't see messages from this user anymore.")
         }
-        .refreshable { await refresh() }
-        .task(id: matchId) { await refresh() }
-        .task(id: matchId) { await followRealtime() }
-        .task(id: matchId) { await pollFallback() }
     }
+}
+
+extension LiveMatchView {
 
     private var composer: some View {
         VStack(spacing: 4) {
@@ -165,10 +210,6 @@ struct LiveMatchView: View {
                 }
             }
         }
-    }
-
-    private func presence(_ item: Binding<MatchEvent?>) -> Binding<Bool> {
-        Binding(get: { item.wrappedValue != nil }, set: { if !$0 { item.wrappedValue = nil } })
     }
 
     private func followRealtime() async {
