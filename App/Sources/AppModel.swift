@@ -17,6 +17,9 @@ final class AppModel {
     private(set) var phase: Phase = .launching
     /// Full profile (role, club, teams); drives which tabs a user gets.
     private(set) var profile: MyProfile?
+    /// Users the signed-in user has blocked. The server already hides their chat messages; this hides
+    /// them the moment a block happens, before the next fetch. Their goals, cards and subs stay.
+    private(set) var blockedUserIds: Set<String> = []
     private(set) var client: APIClient
     private(set) var environment: APIEnvironment
     private let defaults: UserDefaults
@@ -55,6 +58,7 @@ final class AppModel {
         case .signedIn(let user, let profile):
             self.profile = profile
             phase = .signedIn(user)
+            Task { await loadBlocks() }
         case .unreachable(.transport):
             phase = .unreachable("No answer from the server. Check your connection and try again.")
         case .unreachable(let error):
@@ -72,18 +76,49 @@ final class AppModel {
         let user = (try? await client.me()) ?? User(id: "", username: username)
         profile = try? await client.profile()
         phase = .signedIn(user)
+        Task { await loadBlocks() }
     }
 
     func logout() async {
         await client.logout()
         profile = nil
+        blockedUserIds = []
         phase = .signedOut
+    }
+
+    // MARK: Blocks
+
+    /// Best effort: on failure the server-side filtering still applies.
+    func loadBlocks() async {
+        guard let blocks = try? await client.blocks() else { return }
+        blockedUserIds = Set(blocks.map(\.userId))
+    }
+
+    /// Record a block made on the server (directly, or as a side effect of a report).
+    func noteBlocked(_ userId: String) {
+        blockedUserIds.insert(userId)
+    }
+
+    func block(userId: String) async throws {
+        try await client.blockUser(id: userId)
+        noteBlocked(userId)
+    }
+
+    func unblock(userId: String) async throws {
+        try await client.unblockUser(id: userId)
+        blockedUserIds.remove(userId)
+    }
+
+    /// `events` without chat messages from a blocked user.
+    func visible(_ events: [MatchEvent]) -> [MatchEvent] {
+        MatchEvent.visible(events, hiding: blockedUserIds)
     }
 
     /// Call from any screen's catch: a dead session sends the user back to sign-in.
     func handle(_ error: any Error) {
         if case APIError.unauthorized = error {
             profile = nil
+            blockedUserIds = []
             phase = .signedOut
         }
     }
@@ -94,6 +129,7 @@ final class AppModel {
         self.environment = environment
         defaults.set(environment.rawValue, forKey: Keys.environment)
         client = APIClient(baseURL: environment.baseURL, session: session, tokens: makeTokens(environment))
+        blockedUserIds = []
         phase = .signedOut
     }
 

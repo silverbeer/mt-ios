@@ -63,6 +63,28 @@ import MTKit
         await app.switchEnvironment(.local)
         #expect(AppModel(defaults: store, makeTokens: { _ in InMemoryTokenStore() }).environment == .local)
     }
+
+    /// SB-1309: a blocked author's chat disappears at once (their goals stay), and the list is
+    /// dropped on sign-out.
+    @Test func blockedAuthorsAreHiddenUntilSignOut() async throws {
+        let decoder = JSONDecoder()
+        decoder.keyDecodingStrategy = .convertFromSnakeCase
+        let events = try decoder.decode([MatchEvent].self, from: Data("""
+        [{"id": 1, "match_id": 1, "event_type": "message", "created_by": "u-1"},
+         {"id": 2, "match_id": 1, "event_type": "message", "created_by": "u-9"},
+         {"id": 3, "match_id": 1, "event_type": "message"},
+         {"id": 4, "match_id": 1, "event_type": "goal", "created_by": "u-9"}]
+        """.utf8))
+        let app = AppModel(defaults: defaults(), makeTokens: { _ in InMemoryTokenStore() })
+        #expect(app.visible(events).map(\.id) == [1, 2, 3, 4])
+
+        app.noteBlocked("u-9")
+        #expect(app.visible(events).map(\.id) == [1, 3, 4])
+
+        await app.logout()
+        #expect(app.blockedUserIds.isEmpty)
+        #expect(app.visible(events).map(\.id) == [1, 2, 3, 4])
+    }
 }
 
 @MainActor @Suite struct LeagueFilterTests {
