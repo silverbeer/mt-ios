@@ -97,10 +97,16 @@ struct ChatMessageRequest: Encodable, Sendable {
 
 extension APIClient {
     /// Post a live chat message. Idempotent on `clientEventId` (a retry won't duplicate).
+    /// Filtered, banned and rate-limited messages throw `ChatPostError`.
     public func postMessage(matchId: Int, text: String, clientEventId: String = UUID().uuidString)
         async throws -> MatchEvent {
-        try await send("POST", "/api/matches/\(matchId)/live/message",
-                       body: ChatMessageRequest(message: text, clientEventId: clientEventId))
+        do {
+            return try await send("POST", "/api/matches/\(matchId)/live/message",
+                                  body: ChatMessageRequest(message: text, clientEventId: clientEventId))
+        } catch let error as APIError {
+            if let refused = ChatPostError(error) { throw refused }
+            throw error
+        }
     }
 
     /// Soft-delete an event (moderation). The backend allows managers of the match only.

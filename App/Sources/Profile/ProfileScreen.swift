@@ -298,6 +298,19 @@ private struct AccountSections: View {
                 Label("Notifications", systemImage: "bell")
             }
         }
+        Section("Support & Safety") {
+            Link(destination: URL(string: "mailto:support@contact.missingtable.com")!) {
+                Label("Contact Support", systemImage: "envelope")
+            }
+            NavigationLink {
+                BlockedUsersView()
+            } label: {
+                Label("Blocked Users", systemImage: "hand.raised")
+            }
+            Link(destination: URL(string: "https://missingtable.com/privacy")!) {
+                Label("Privacy Policy", systemImage: "lock.shield")
+            }
+        }
         Section("Account") {
             if let username = profile.username { LabeledContent("Username", value: username) }
             LabeledContent("Role", value: profile.kind.title)
