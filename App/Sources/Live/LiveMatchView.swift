@@ -19,12 +19,29 @@ struct LiveMatchView: View {
     @State private var blocking: MatchEvent?
     @State private var showingReported = false
     @State private var showingRules = false
+    /// The chat room an admin picked; nil means the server's default (SB-1330).
+    @State private var chatRoom: Int?
     @AppStorage("chatRulesAccepted") private var rulesAccepted = false
 
     static let fallbackPoll: Duration = .seconds(15)
     static let maxLength = 500
 
     private var canModerate: Bool { app.role.isManager }
+
+    /// Club chat rooms (SB-1330). nil from a server without rooms: chat as before.
+    private var chat: ChatAccess? { live?.chat }
+
+    private var chatClosed: Bool {
+        chat?.closed == true || live?.matchStatus == .completed || live?.matchStatus == .forfeit
+    }
+
+    /// Why there's no chat box, or nil when there is one.
+    private var chatNote: String? {
+        guard let chat else { return nil }
+        if !chat.available { return "Live chat is open to members of the clubs playing." }
+        if chatClosed { return "Chat has closed for this match." }
+        return nil
+    }
 
     private func isMine(_ event: MatchEvent) -> Bool {
         guard let author = event.createdBy else { return false }
@@ -71,15 +88,46 @@ struct LiveMatchView: View {
                 scoreSummary(match)
             }
             Section("Live") {
+                if let rooms = chat?.rooms, rooms.count > 1 {
+                    roomPicker(rooms)
+                }
                 if visible.isEmpty {
-                    Text("No activity yet. Say hi 👋").foregroundStyle(.secondary)
+                    Text(chatNote == nil ? "No activity yet. Say hi 👋" : "No activity yet.")
+                        .foregroundStyle(.secondary)
                 }
                 ForEach(visible) { event in
                     row(event, match: match)
                 }
             }
         }
-        .safeAreaInset(edge: .bottom) { composer }
+        .safeAreaInset(edge: .bottom) {
+            if let chatNote {
+                Text(chatNote)
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                    .frame(maxWidth: .infinity)
+                    .padding()
+                    .background(.bar)
+            } else {
+                composer
+            }
+        }
+    }
+
+    /// An admin reads either club's room (SB-1330).
+    private func roomPicker(_ rooms: [ChatRoom]) -> some View {
+        Picker("Chat room", selection: Binding(
+            get: { chat?.clubId ?? rooms[0].clubId },
+            set: { picked in
+                chatRoom = picked
+                Task { await refresh() }
+            }
+        )) {
+            ForEach(rooms) { room in
+                Text("\(room.name ?? "Club") chat").tag(room.clubId)
+            }
+        }
+        .pickerStyle(.segmented)
     }
 
     private func scoreSummary(_ match: Match) -> some View {
@@ -227,8 +275,8 @@ extension LiveMatchView {
 
     private func refresh() async {
         do {
-            async let state = app.client.liveState(matchId: matchId)
-            async let latest = app.client.events(matchId: matchId)
+            async let state = app.client.liveState(matchId: matchId, chatClubId: chatRoom)
+            async let latest = app.client.events(matchId: matchId, chatClubId: chatRoom)
             async let row = app.client.match(id: matchId)
             live = try await state
             events = try await latest  // newest first, as the web activity stream
@@ -252,7 +300,7 @@ extension LiveMatchView {
         sendError = nil
         defer { sending = false }
         do {
-            let posted = try await app.client.postMessage(matchId: matchId, text: text)
+            let posted = try await app.client.postMessage(matchId: matchId, text: text, clubId: chatRoom)
             draft = ""
             if !events.contains(where: { $0.id == posted.id }) { events.insert(posted, at: 0) }
         } catch {

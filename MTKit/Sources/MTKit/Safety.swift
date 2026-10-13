@@ -44,11 +44,21 @@ public enum ChatPostError: Error, Equatable, Sendable, LocalizedError {
     case banned
     /// 429: more than 10 messages a minute.
     case rateLimited
+    /// 403: the user's club isn't playing in this match (SB-1330).
+    case notAMember
+    /// 403: the match is over; chat is read-only (SB-1330).
+    case closed
+
+    /// The backend's words for the two club-room refusals (services/chat_rooms.py).
+    static let notAMemberDetail = "Live chat is open to members of the clubs playing"
+    static let closedDetail = "Chat has closed for this match"
 
     init?(_ error: APIError) {
-        guard case .http(let status, _) = error else { return nil }
+        guard case .http(let status, let detail) = error else { return nil }
         switch status {
         case 422: self = .notAllowed
+        case 403 where detail == Self.notAMemberDetail: self = .notAMember
+        case 403 where detail == Self.closedDetail: self = .closed
         case 403: self = .banned
         case 429: self = .rateLimited
         default: return nil
@@ -60,6 +70,8 @@ public enum ChatPostError: Error, Equatable, Sendable, LocalizedError {
         case .notAllowed: "That message contains language that isn't allowed."
         case .banned: "You can no longer post in chat."
         case .rateLimited: "You're sending messages too fast."
+        case .notAMember: "Live chat is open to members of the clubs playing."
+        case .closed: "Chat has closed for this match."
         }
     }
 }

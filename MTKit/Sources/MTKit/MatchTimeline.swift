@@ -93,16 +93,19 @@ public enum LiveClock {
 struct ChatMessageRequest: Encodable, Sendable {
     var message: String
     var clientEventId: String
+    /// The room to post in; honoured for admins only, omitted when nil (SB-1330).
+    var clubId: Int?
 }
 
 extension APIClient {
     /// Post a live chat message. Idempotent on `clientEventId` (a retry won't duplicate).
     /// Filtered, banned and rate-limited messages throw `ChatPostError`.
-    public func postMessage(matchId: Int, text: String, clientEventId: String = UUID().uuidString)
-        async throws -> MatchEvent {
+    public func postMessage(matchId: Int, text: String, clientEventId: String = UUID().uuidString,
+                            clubId: Int? = nil) async throws -> MatchEvent {
         do {
             return try await send("POST", "/api/matches/\(matchId)/live/message",
-                                  body: ChatMessageRequest(message: text, clientEventId: clientEventId))
+                                  body: ChatMessageRequest(message: text, clientEventId: clientEventId,
+                                                           clubId: clubId))
         } catch let error as APIError {
             if let refused = ChatPostError(error) { throw refused }
             throw error
@@ -114,8 +117,10 @@ extension APIClient {
         try await sendIgnoringBody("DELETE", "/api/matches/\(matchId)/live/events/\(eventId)")
     }
 
-    /// Up to 100 events for a match (goals, cards, subs, status changes).
-    public func events(matchId: Int) async throws -> [MatchEvent] {
-        try await get("/api/matches/\(matchId)/live/events", query: ["limit": "100"])
+    /// Up to 100 events for a match (goals, cards, subs, status changes), plus the viewer's
+    /// chat room. `chatClubId` picks the room; the server honours it for admins only.
+    public func events(matchId: Int, chatClubId: Int? = nil) async throws -> [MatchEvent] {
+        try await get("/api/matches/\(matchId)/live/events",
+                      query: ["limit": "100", "chat_club_id": chatClubId.map(String.init)])
     }
 }
