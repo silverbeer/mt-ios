@@ -3,7 +3,7 @@ import Testing
 @testable import MTKit
 
 @Suite struct RealtimeTests {
-    @Test func joinSubscribesToThisMatchsEventsAndRow() throws {
+    @Test func joinSubscribesToThisMatchsEventsRowAndChatSignal() throws {
         let data = try MatchRealtime.joinMessage(matchId: 42, anonKey: "k", ref: "1")
         let object = try #require(JSONSerialization.jsonObject(with: data) as? [String: Any])
         #expect(object["topic"] as? String == "realtime:match-42")
@@ -12,8 +12,8 @@ import Testing
         #expect(payload["access_token"] as? String == "k")
         let config = try #require(payload["config"] as? [String: Any])
         let changes = try #require(config["postgres_changes"] as? [[String: String]])
-        #expect(changes.map { $0["table"]! } == ["match_events", "matches"])
-        #expect(changes.map { $0["filter"]! } == ["match_id=eq.42", "id=eq.42"])
+        #expect(changes.map { $0["table"]! } == ["match_events", "matches", "live_chat_signals"])
+        #expect(changes.map { $0["filter"]! } == ["match_id=eq.42", "id=eq.42", "match_id=eq.42"])
     }
 
     @Test func classifiesServerMessages() {

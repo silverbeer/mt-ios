@@ -28,7 +28,8 @@ extension APIEnvironment {
 }
 
 /// "Something changed on this match" signals from Supabase Realtime, as the web's
-/// useLiveMatch subscribes to postgres_changes on match_events and matches.
+/// useLiveMatch subscribes to postgres_changes on match_events, matches and the
+/// live_chat_signals chat doorbell.
 ///
 /// Callers re-read through the API on each signal rather than trusting the payload,
 /// and keep a slow poll as a fallback. The stream reconnects after drops until the
@@ -126,9 +127,13 @@ public enum MatchRealtime {
     static func topic(matchId: Int) -> String { "realtime:match-\(matchId)" }
 
     static func joinMessage(matchId: Int, anonKey: String, ref: String) throws -> Data {
+        // Chat rows are not readable with the anon key (backend SB-1329), so match_events
+        // carries goals, cards and status only. live_chat_signals is the chat doorbell: a
+        // content-free row the backend touches whenever this match's chat changes.
         let payload = JoinPayload(config: .init(postgres_changes: [
             .init(table: "match_events", filter: "match_id=eq.\(matchId)"),
             .init(table: "matches", filter: "id=eq.\(matchId)"),
+            .init(table: "live_chat_signals", filter: "match_id=eq.\(matchId)"),
         ]), access_token: anonKey)
         return try JSONEncoder().encode(Envelope(topic: topic(matchId: matchId), event: "phx_join",
                                                  payload: payload, ref: ref))
