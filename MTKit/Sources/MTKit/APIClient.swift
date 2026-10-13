@@ -111,8 +111,9 @@ public actor APIClient {
 
     public func liveMatches() async throws -> [LiveMatchSummary] { try await get("/api/matches/live") }
 
-    public func liveState(matchId: Int) async throws -> LiveMatchState {
-        try await get("/api/matches/\(matchId)/live")
+    /// `chatClubId` picks a chat room; the server honours it for admins only (SB-1330).
+    public func liveState(matchId: Int, chatClubId: Int? = nil) async throws -> LiveMatchState {
+        try await get("/api/matches/\(matchId)/live", query: ["chat_club_id": chatClubId.map(String.init)])
     }
 
     // MARK: Plumbing

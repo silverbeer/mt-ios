@@ -304,4 +304,38 @@ public struct LiveMatchState: Codable, Sendable, Equatable {
     public var awayTeamId: Int?
     public var awayTeamName: String?
     public var recentEvents: [MatchEvent]?
+    /// The viewer's club chat room (SB-1330). nil from a server without rooms.
+    public var chat: ChatAccess?
+}
+
+/// One club's chat room in a match (SB-1330).
+public struct ChatRoom: Codable, Sendable, Equatable, Identifiable {
+    public var clubId: Int
+    public var name: String?
+
+    public var id: Int { clubId }
+
+    public init(clubId: Int, name: String? = nil) {
+        self.clubId = clubId
+        self.name = name
+    }
+}
+
+/// What the viewer can do with a match's chat (SB-1330). Each club playing has its own
+/// room; someone whose club isn't playing has none. Admins may switch between rooms.
+public struct ChatAccess: Codable, Sendable, Equatable {
+    public var available: Bool
+    public var clubId: Int?
+    public var rooms: [ChatRoom]
+    public var closed: Bool
+
+    public init(available: Bool, clubId: Int? = nil, rooms: [ChatRoom] = [], closed: Bool = false) {
+        self.available = available
+        self.clubId = clubId
+        self.rooms = rooms
+        self.closed = closed
+    }
+
+    /// Whether the viewer can post now: they have a room and the match isn't over.
+    public var canPost: Bool { available && !closed }
 }
