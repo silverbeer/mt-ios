@@ -73,6 +73,30 @@ import Testing
         #expect(live.halfDuration == 40)
         #expect(live.recentEvents?.first?.playerName == "Sam")
     }
+
+    /// SB-1360: the backend's new position_change event (with a `position` field).
+    @Test func decodesPositionChangeEvent() throws {
+        let data = json("""
+        {"id": 9, "match_id": 5, "event_type": "position_change", "team_id": 1, "player_id": 7,
+         "player_name": "Josh", "position": "ST", "match_minute": 52, "extra_time": null,
+         "message": "POS: Josh → ST", "created_at": "2026-10-04T14:52:00Z"}
+        """)
+        let event = try JSONDecoder.mt.decode(MatchEvent.self, from: data)
+        #expect(event.kind == .positionChange)
+        #expect(event.message == "POS: Josh → ST")
+        #expect(event.minuteLabel == "52'")
+    }
+
+    /// An event type the app doesn't know yet still decodes, as `.other`.
+    @Test func decodesUnknownEventTypeAsOther() throws {
+        let data = json("""
+        {"id": 10, "match_id": 5, "event_type": "foo_bar", "team_id": 1, "some_new_field": {"x": 1},
+         "match_minute": 60, "message": "Something new", "created_at": "2026-10-04T15:00:00Z"}
+        """)
+        let event = try JSONDecoder.mt.decode(MatchEvent.self, from: data)
+        #expect(event.kind == .other("foo_bar"))
+        #expect(event.eventType == "foo_bar")
+    }
 }
 
 @Suite struct KeychainTokenStoreTests {

@@ -280,6 +280,7 @@ struct TimelineRow: View {
         case .yellowCard: CardIcon(red: false)
         case .redCard: CardIcon(red: true)
         case .substitution: Image(systemName: "arrow.left.arrow.right").foregroundStyle(.secondary)
+        case .positionChange: Image(systemName: "arrow.up.arrow.down").foregroundStyle(.secondary)
         case .statusChange: Image(systemName: "flag.fill").foregroundStyle(.secondary)
         case .message, .other: Image(systemName: "text.bubble").foregroundStyle(.secondary)
         }
@@ -291,6 +292,8 @@ struct TimelineRow: View {
         case .goal: return "Goal — \(event.playerName ?? teamName ?? "")"
         case .yellowCard: return "Yellow card — \(event.playerName ?? teamName ?? "")"
         case .redCard: return "Red card — \(event.playerName ?? teamName ?? "")"
+        case .positionChange:
+            return message ?? "Position change"
         case .substitution, .statusChange, .message, .other:
             return message ?? event.eventType.replacingOccurrences(of: "_", with: " ").capitalized
         }
