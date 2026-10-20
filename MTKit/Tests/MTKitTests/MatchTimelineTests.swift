@@ -33,6 +33,14 @@ private func at(_ s: String) -> Date { MTDate.timestamp(s)! }
         #expect(timeline.awayCards.map(\.id) == [3])
     }
 
+    /// SB-1360: a position change is listed in the timeline but never as a scorer or card.
+    @Test func positionChangeStaysOutOfScorerAndCardColumns() {
+        let timeline = MatchTimeline(events: [event(1, "position_change", team: 1, minute: 50, player: "Josh")],
+                                     homeTeamId: 1, awayTeamId: 2)
+        #expect(timeline.all.map(\.kind) == [.positionChange])
+        #expect(!timeline.hasGoalsOrCards)
+    }
+
     @Test func hasGoalsOrCardsIgnoresChatAndStatus() {
         let chatter = MatchTimeline(events: [event(1, "message"), event(2, "status_change"),
                                              event(3, "substitution", team: 1, minute: 10)],

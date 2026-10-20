@@ -2,7 +2,7 @@ import Foundation
 
 extension MatchEvent {
     public enum Kind: Sendable, Equatable {
-        case goal, yellowCard, redCard, substitution, statusChange, message, other(String)
+        case goal, yellowCard, redCard, substitution, positionChange, statusChange, message, other(String)
     }
 
     public var kind: Kind {
@@ -11,6 +11,7 @@ extension MatchEvent {
         case "yellow_card": .yellowCard
         case "red_card": .redCard
         case "substitution": .substitution
+        case "position_change": .positionChange
         case "status_change": .statusChange
         case "message": .message
         default: .other(eventType)
