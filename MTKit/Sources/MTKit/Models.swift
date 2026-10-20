@@ -286,6 +286,11 @@ public struct MatchEvent: Codable, Sendable, Equatable, Identifiable {
     public var createdAt: String?
     public var createdBy: String?
     public var createdByUsername: String?
+    /// Substitution: player coming on (`playerId`) and off (`playerOutId`).
+    /// Position change: the player who moved and where to (SB-1359).
+    public var playerId: Int?
+    public var playerOutId: Int?
+    public var position: String?
 }
 
 /// `GET /api/matches/{id}/live` — the live clock fields the minute is derived from.
@@ -304,6 +309,10 @@ public struct LiveMatchState: Codable, Sendable, Equatable {
     public var awayTeamId: Int?
     public var awayTeamName: String?
     public var recentEvents: [MatchEvent]?
+    /// Every substitution and position change, oldest first — what the current XI is
+    /// rebuilt from. `recentEvents` is capped and includes chat (SB-1369). Nil from a
+    /// backend that predates it.
+    public var pitchEvents: [MatchEvent]? = nil
     /// The viewer's club chat room (SB-1330). nil from a server without rooms.
     public var chat: ChatAccess?
 }
