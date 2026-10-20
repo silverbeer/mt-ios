@@ -184,6 +184,12 @@ private struct StatusLine: View {
                         .background(.red, in: Capsule())
                         .foregroundStyle(.white)
                     Text(clock.display).font(.subheadline.monospacedDigit().bold())
+                    // Break countdown at half time (SB-1361); orange once overdue.
+                    if let left = HalfTimeBreak.remainingSeconds(live, now: context.date) {
+                        Text(HalfTimeBreak.text(left))
+                            .font(.subheadline.monospacedDigit())
+                            .foregroundStyle(left < 0 ? Color.orange : Color.secondary)
+                    }
                 }
             }
         } else {

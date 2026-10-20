@@ -92,4 +92,25 @@ private func at(_ s: String) -> Date { MTDate.timestamp(s)! }
         match.scoringMode = "live"
         #expect(match.isLiveScored)
     }
+
+    @Test func halfTimeBreakCountsDown() {
+        let ht = live(halftime: "2026-10-04T14:41:00Z")
+        #expect(HalfTimeBreak.remainingSeconds(ht, now: at("2026-10-04T14:41:00Z")) == 600)
+        let left = HalfTimeBreak.remainingSeconds(ht, now: at("2026-10-04T14:48:18Z"))
+        #expect(left == 162)
+        #expect(HalfTimeBreak.text(162) == "2:42")
+    }
+
+    @Test func halfTimeBreakGoesOverdue() {
+        let ht = live(halftime: "2026-10-04T14:41:00Z")
+        let left = HalfTimeBreak.remainingSeconds(ht, now: at("2026-10-04T14:53:15Z"))
+        #expect(left == -135)
+        #expect(HalfTimeBreak.text(-135) == "+2:15")
+    }
+
+    @Test func noBreakOutsideHalfTime() {
+        #expect(HalfTimeBreak.remainingSeconds(live()) == nil)
+        #expect(HalfTimeBreak.remainingSeconds(live(halftime: "2026-10-04T14:41:00Z",
+                                                    second: "2026-10-04T14:50:00Z")) == nil)
+    }
 }

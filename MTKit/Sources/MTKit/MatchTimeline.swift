@@ -91,6 +91,28 @@ public enum LiveClock {
     }
 }
 
+/// The interval between halves (SB-1361, as Android SB-1350). The break is a fixed
+/// length, so viewers see how long is left — and that it's overdue when the scorer
+/// forgot to start the second half.
+public enum HalfTimeBreak {
+    public static let minutes = 10
+
+    /// Seconds until the break is up; negative once overdue. Nil unless the match is
+    /// at half time with a readable `halftimeStart`.
+    public static func remainingSeconds(_ state: LiveMatchState, now: Date = Date()) -> Int? {
+        guard state.secondHalfStart == nil, state.matchEndTime == nil,
+              let start = state.halftimeStart.flatMap(MTDate.timestamp) else { return nil }
+        return minutes * 60 - Int(now.timeIntervalSince(start))
+    }
+
+    /// "7:42", or "+2:15" once overdue.
+    public static func text(_ remaining: Int) -> String {
+        let s = abs(remaining)
+        let text = String(format: "%d:%02d", s / 60, s % 60)
+        return remaining < 0 ? "+" + text : text
+    }
+}
+
 struct ChatMessageRequest: Encodable, Sendable {
     var message: String
     var clientEventId: String
