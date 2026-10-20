@@ -71,7 +71,7 @@ struct LiveMatchView: View {
             }
         }
         .sheet(isPresented: $showingLineups) {
-            if let match { LiveLineupsSheet(match: match) }
+            if let match { LiveLineupsSheet(match: match, pitchEvents: pitchEvents) }
         }
         .modifier(moderationDialogs)
         .refreshable { await refresh() }
@@ -273,6 +273,13 @@ extension LiveMatchView {
         }
     }
 
+    /// Subs and position changes the lineup sheet applies (SB-1359). The live state's
+    /// full list when the backend sends it; otherwise whatever the capped, chat-mixed
+    /// activity list still holds.
+    private var pitchEvents: [MatchEvent] {
+        live?.pitchEvents ?? events.filter { ["substitution", "position_change"].contains($0.eventType) }
+    }
+
     private func refresh() async {
         do {
             async let state = app.client.liveState(matchId: matchId, chatClubId: chatRoom)
@@ -408,6 +415,8 @@ private struct ChatRow: View {
 /// set or changed after kickoff shows up.
 private struct LiveLineupsSheet: View {
     let match: Match
+    /// Applied on top of the saved starting lineups, so the sheet shows who is on now.
+    let pitchEvents: [MatchEvent]
     @Environment(AppModel.self) private var app
     @Environment(\.dismiss) private var dismiss
     @State private var home: Lineup?
@@ -431,11 +440,24 @@ private struct LiveLineupsSheet: View {
             .task {
                 async let h = try? app.client.lineup(matchId: match.id, teamId: match.homeTeamId)
                 async let a = try? app.client.lineup(matchId: match.id, teamId: match.awayTeamId)
-                (home, away) = (await h ?? nil, await a ?? nil)
+                async let hr = roster(match.homeTeamId)
+                async let ar = roster(match.awayTeamId)
+                let (homeRoster, awayRoster) = await (hr, ar)
+                home = (await h ?? nil)?.current(events: events(match.homeTeamId), roster: homeRoster)
+                away = (await a ?? nil)?.current(events: events(match.awayTeamId), roster: awayRoster)
                 loaded = true
             }
         }
         .presentationDetents([.medium, .large])
+    }
+
+    private func events(_ teamId: Int) -> [MatchEvent] { pitchEvents.filter { $0.teamId == teamId } }
+
+    /// Names and numbers for players who came on; only fetched once someone has.
+    private func roster(_ teamId: Int) async -> [RosterPlayer] {
+        guard let seasonId = match.seasonId,
+              events(teamId).contains(where: { $0.eventType == "substitution" }) else { return [] }
+        return (try? await app.client.roster(teamId: teamId, seasonId: seasonId)) ?? []
     }
 }
 
