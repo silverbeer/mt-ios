@@ -20,6 +20,39 @@ import Testing
         #expect(row.id == "7")
     }
 
+    @Test func decodesPerMatchRatesWhenPresent() throws {
+        let row = try JSONDecoder.mt.decode(StandingRow.self, from: json("""
+        {"team": "Blues", "played": 4, "points": 9, "goal_difference": 5,
+         "points_per_match": 2.25, "gd_per_match": 1.25, "gf_per_match": 2.5, "ga_per_match": 1}
+        """))
+        #expect(row.pointsPerMatch == 2.25)
+        #expect(row.gdPerMatch == 1.25)
+        #expect(row.gfPerMatch == 2.5)
+        #expect(row.gaPerMatch == 1.0)
+    }
+
+    /// `played == 0`: the backend sends null, which stays nil (rendered as a dash, never 0.00).
+    @Test func perMatchRatesStayNilWhenNull() throws {
+        let row = try JSONDecoder.mt.decode(StandingRow.self, from: json("""
+        {"team": "Blues", "played": 0, "points_per_match": null, "gd_per_match": null,
+         "gf_per_match": null, "ga_per_match": null}
+        """))
+        #expect(row.pointsPerMatch == nil)
+        #expect(row.gdPerMatch == nil)
+        #expect(row.gfPerMatch == nil)
+        #expect(row.gaPerMatch == nil)
+    }
+
+    /// Older backends don't send the rates at all.
+    @Test func perMatchRatesStayNilWhenAbsent() throws {
+        let row = try JSONDecoder.mt.decode(StandingRow.self, from: json(#"{"team": "Blues", "played": 5, "points": 11}"#))
+        #expect(row.points == 11)
+        #expect(row.pointsPerMatch == nil)
+        #expect(row.gdPerMatch == nil)
+        #expect(row.gfPerMatch == nil)
+        #expect(row.gaPerMatch == nil)
+    }
+
     @Test func decodesMatchWithNullScoresAndUnknownStatus() throws {
         let data = json("""
         {"id": 42, "match_date": "2026-10-04", "scheduled_kickoff": "2026-10-04T14:00:00+00:00",

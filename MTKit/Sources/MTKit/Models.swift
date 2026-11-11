@@ -93,13 +93,21 @@ public struct StandingRow: Codable, Sendable, Equatable, Identifiable {
     public var points: Int
     public var form: [String]?
     public var positionChange: Int?
+    /// Per-match rates, the official MLS NEXT ranking basis (rows arrive in rank order).
+    /// `nil` when the team has not played, or when an older backend does not send them.
+    public var pointsPerMatch: Double?
+    public var gdPerMatch: Double?
+    public var gfPerMatch: Double?
+    public var gaPerMatch: Double?
 
     public var id: String { teamId.map(String.init) ?? team }
 
     public init(team: String, teamId: Int? = nil, clubId: Int? = nil,
                 played: Int = 0, wins: Int = 0, draws: Int = 0, losses: Int = 0,
                 goalsFor: Int = 0, goalsAgainst: Int = 0, goalDifference: Int = 0, points: Int = 0,
-                form: [String]? = nil, positionChange: Int? = nil) {
+                form: [String]? = nil, positionChange: Int? = nil,
+                pointsPerMatch: Double? = nil, gdPerMatch: Double? = nil,
+                gfPerMatch: Double? = nil, gaPerMatch: Double? = nil) {
         self.team = team
         self.teamId = teamId
         self.clubId = clubId
@@ -113,6 +121,10 @@ public struct StandingRow: Codable, Sendable, Equatable, Identifiable {
         self.points = points
         self.form = form
         self.positionChange = positionChange
+        self.pointsPerMatch = pointsPerMatch
+        self.gdPerMatch = gdPerMatch
+        self.gfPerMatch = gfPerMatch
+        self.gaPerMatch = gaPerMatch
     }
 }
 
@@ -129,7 +141,12 @@ extension StandingRow {
                   goalsAgainst: try count(.goalsAgainst), goalDifference: try count(.goalDifference),
                   points: try count(.points),
                   form: try c.decodeIfPresent([String].self, forKey: .form),
-                  positionChange: try c.decodeIfPresent(Int.self, forKey: .positionChange))
+                  positionChange: try c.decodeIfPresent(Int.self, forKey: .positionChange),
+                  // Rates stay nil when absent or null: missing is never shown as zero.
+                  pointsPerMatch: try c.decodeIfPresent(Double.self, forKey: .pointsPerMatch),
+                  gdPerMatch: try c.decodeIfPresent(Double.self, forKey: .gdPerMatch),
+                  gfPerMatch: try c.decodeIfPresent(Double.self, forKey: .gfPerMatch),
+                  gaPerMatch: try c.decodeIfPresent(Double.self, forKey: .gaPerMatch))
     }
 }
 
